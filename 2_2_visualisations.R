@@ -47,7 +47,7 @@ plotTitles = c('HR', 'HRV', 'SCR_RATE', 'SCR_AMPL')
 data_temp <- data #to get back to
 
 # for(i in 1:length(formulas)) {
-for(i in 1) {
+for(i in 4) {
   data <- data[complete.cases(get(names(data)[i + 2], data)), ] # get only complete cases for this specific variable
   # data <- data[is.na(get(names(data)[i + 2], data)), i + 2] <- 0 # First, Turn NA into Zero
   data <- data[get(names(data)[i + 2], data) != 0, ] # Now remove all rows with zeroes
@@ -80,7 +80,7 @@ for(i in 1) {
   dpi=600    #pixels per square inch
   # jpeg(paste0(plotPrefix, "Figure", "_", plotTitles[i], ".jpeg"), width=8*dpi, height=4*dpi, res=dpi)
   par(mfcol = c(1, 1))
-  plotAROUSAL <- pirateplot(
+  plot <- pirateplot(
     formula = formulas[i],
     data = data,
     theme = 1,
@@ -113,5 +113,5 @@ for(i in 1) {
   # axis(side=1, at=c(1:6), line = 3, labels=c('control1','control2','control3','stress1','stress2','stress3' ))
 
   # dev.off()
-   data <- data_temp # make sure you have all the data gain in next round
+   data <- data_temp # make sure you have all the data again in next round
 }
