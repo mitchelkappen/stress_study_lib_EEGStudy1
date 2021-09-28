@@ -20,6 +20,7 @@ library(tibble)
 
 
 nAGQ = 0 # Set to 1 for eventual analysis
+subblock = 1 # 0 to do only control vs stress, 1 for subblocks
 plotPrefix = "Plots/"
 
 # Set and Get directories
@@ -30,9 +31,14 @@ setwd(dirname(rstudioapi::getActiveDocumentContext()$path)) #Set WD to script lo
 # FEATURES_PATH = paste0(DATA_PATH,"/features_gemaps/")
 
 # Load the csv file
+if (subblock == 1){
+  data <-
+    as.data.frame(read_parquet("user_data_per_subblock.parquet"))
+} else if (subblock == 0){
+  data <-
+    as.data.frame(read_parquet("user_data_per_block.parquet"))
+}
 
-data <-
-  as.data.frame(read_parquet("user_data_per_block.parquet"))
 
 # dataSmall <- data[complete.cases(data$HR), ]
 data <- data[ , -which(names(data) %in% c("start_ts","stop_ts"))]
@@ -47,7 +53,7 @@ plotTitles = c('HR', 'HRV', 'SCR_RATE', 'SCR_AMPL')
 data_temp <- data #to get back to
 
 # for(i in 1:length(formulas)) {
-for(i in 4) {
+for(i in 2) {
   data <- data[complete.cases(get(names(data)[i + 2], data)), ] # get only complete cases for this specific variable
   # data <- data[is.na(get(names(data)[i + 2], data)), i + 2] <- 0 # First, Turn NA into Zero
   data <- data[get(names(data)[i + 2], data) != 0, ] # Now remove all rows with zeroes
@@ -58,7 +64,7 @@ for(i in 4) {
   d0.2 <- glmer(formula,data=data, family = gaussian(link = "inverse"),glmerControl(optimizer= "bobyqa", optCtrl = list(maxfun = 100000)),nAGQ = nAGQ)
   d0.3 <- glmer(formula,data=data, family = gaussian(link = "log"),glmerControl(optimizer= "bobyqa", optCtrl = list(maxfun = 100000)),nAGQ = nAGQ)
 
-  d0.4 <- glmer(formula,data=data, family = Gamma(link = "identity"),glmerControl(optimizer= "bobyqa", optCtrl = list(maxfun = 100000)),nAGQ = nAGQ)
+  # d0.4 <- glmer(formula,data=data, family = Gamma(link = "identity"),glmerControl(optimizer= "bobyqa", optCtrl = list(maxfun = 100000)),nAGQ = nAGQ)
   d0.5 <- glmer(formula,data=data, family = Gamma(link = "inverse"),glmerControl(optimizer= "bobyqa", optCtrl = list(maxfun = 100000)),nAGQ = nAGQ)
   d0.6 <- glmer(formula,data=data, family = Gamma(link = "log"),glmerControl(optimizer= "bobyqa", optCtrl = list(maxfun = 100000)),nAGQ = nAGQ)
 
