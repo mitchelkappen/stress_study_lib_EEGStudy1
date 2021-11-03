@@ -20,7 +20,7 @@ library(tibble)
 
 
 nAGQ = 0 # Set to 1 for eventual analysis
-subblock = 1 # 0 to do only control vs stress, 1 for subblocks
+subblock = 0 # 0 to do only control vs stress, 1 for subblocks
 plotPrefix = "Plots/"
 
 # Set and Get directories
