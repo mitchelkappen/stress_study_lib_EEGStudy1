@@ -166,17 +166,6 @@ for(i in 1) {
     
     xlab = "",
   )
-  # abline(lm(formulas[i], data=data), lwd=4, lty=2, col = "red")
-  
-  # Secondary points and axis:
-  # mtext("fileNum",1,line=1,at=0.2,col="red")
-  
-  # mtext("Experiment phase",1,line=3,at=0.2,col="blue")
-  # axis(side=1, at=c(1:9), line = 3, labels=c('prerest','control1','control2','control3','midrest','stress1','stress2','stress3','postrest' ))
-  # axis(side=1, at=c(1:6), line = 3, labels=c('control1','control2','control3','stress1','stress2','stress3' ))
-  
-  # dev.off()
-  data <- data_temp # make sure you have all the data again in next round
 }
 
 ########### VIZ 2 : Full DATA ####################
@@ -242,17 +231,6 @@ for(i in 1) {
     
     xlab = "",
   )
-  # abline(lm(formulas[i], data=data), lwd=4, lty=2, col = "red")
-  
-  # Secondary points and axis:
-  # mtext("fileNum",1,line=1,at=0.2,col="red")
-  
-  # mtext("Experiment phase",1,line=3,at=0.2,col="blue")
-  # axis(side=1, at=c(1:9), line = 3, labels=c('prerest','control1','control2','control3','midrest','stress1','stress2','stress3','postrest' ))
-  # axis(side=1, at=c(1:6), line = 3, labels=c('control1','control2','control3','stress1','stress2','stress3' ))
-  
-  # dev.off()
-  data <- data_temp # make sure you have all the data again in next round
 }
 
 
