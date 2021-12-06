@@ -5,3 +5,5 @@ Plots
 .Rhistory
 .RData
 smile.log
+*.jpeg
+*.png

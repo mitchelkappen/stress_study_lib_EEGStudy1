@@ -34,7 +34,8 @@ setwd(dirname(rstudioapi::getActiveDocumentContext()$path)) #Set WD to script lo
 data <-
   as.data.frame(read_parquet("data_blocks_feats.parquet"))
 
-dataSmall <- data[complete.cases(data$HR), ]
+# dataSmall <- data[complete.cases(data$HR), ] # We dont have to exclude the HR's?
+dataSmall <- data
 dataSmall <- dataSmall[ , -which(names(dataSmall) %in% c("start_ts","stop_ts"))] # Doing this because of very anoying timezone errors
 
 
@@ -58,18 +59,26 @@ data = dataSmall
 data$participantNum <- factor(data$participantNum)
 
 # formulas = c('arousal ~ fileNum', 'valence ~ fileNum', 'dominance ~ fileNum', 'F0semitoneFrom27.5Hz_sma3nz_amean ~ fileNum', 'jitterLocal_sma3nz_amean ~ fileNum', 'shimmerLocaldB_sma3nz_amean ~ fileNum', 'HNRdBACF_sma3nz_amean ~ fileNum', 'VoicedSegmentsPerSec ~ fileNum', 'MeanVoicedSegmentLengthSec ~ fileNum')
-formulas = c('arousal ~ fileNum', 'valence ~ fileNum', 'dominance ~ fileNum', 'F0semitoneFrom27.5Hz_sma3nz_amean ~ fileNum', 'jitterLocal_sma3nz_amean ~ fileNum', 'shimmerLocaldB_sma3nz_amean ~ fileNum', 'HNRdBACF_sma3nz_amean ~ fileNum', 'VoicedSegmentsPerSec ~ fileNum', 'MeanVoicedSegmentLengthSec ~ fileNum')
+formulas = c('arousal ~ condition', 'valence ~ condition', 'dominance ~ fileNum', 'F0semitoneFrom27.5Hz_sma3nz_amean ~ fileNum', 'jitterLocal_sma3nz_amean ~ fileNum', 'shimmerLocaldB_sma3nz_amean ~ fileNum', 'HNRdBACF_sma3nz_amean ~ fileNum', 'VoicedSegmentsPerSec ~ fileNum', 'MeanVoicedSegmentLengthSec ~ fileNum')
 # formulas = c('F0semitoneFrom27.5Hz_sma3nz_amean ~ fileNum + (1|participantNum)')
-formulas = c('F0semitoneFrom27.5Hz_sma3nz_amean ~ time * condition', 'jitterLocal_sma3nz_amean ~ time * condition', 'shimmerLocaldB_sma3nz_amean ~ time * condition', 'HNRdBACF_sma3nz_amean ~ time * condition', 'VoicedSegmentsPerSec ~ time * condition', 'MeanVoicedSegmentLengthSec ~ time * condition')
+
+
+# formulas = c('F0semitoneFrom27.5Hz_sma3nz_amean ~ time * condition', 'jitterLocal_sma3nz_amean ~ time * condition', 'shimmerLocaldB_sma3nz_amean ~ time * condition', 'HNRdBACF_sma3nz_amean ~ time * condition', 'VoicedSegmentsPerSec ~ time * condition', 'MeanVoicedSegmentLengthSec ~ time * condition')
+formulas = c('F0semitoneFrom27.5Hz_sma3nz_amean ~ condition', 'jitterLocal_sma3nz_amean ~ condition', 'shimmerLocaldB_sma3nz_amean ~ condition', 'HNRdBACF_sma3nz_amean ~ condition', 'VoicedSegmentsPerSec ~ condition', 'MeanVoicedSegmentLengthSec ~ condition')
+# formulas = c('F0semitoneFrom27.5Hz_sma3nz_amean ~ time', 'jitterLocal_sma3nz_amean ~ time', 'shimmerLocaldB_sma3nz_amean ~ time', 'HNRdBACF_sma3nz_amean ~ time', 'VoicedSegmentsPerSec ~ time', 'MeanVoicedSegmentLengthSec ~ time')
 
 # Formulas for physioligcal
-formulas = c('HR ~ condition', 'HRV ~ condition', 'EDA ~ condition', 'SCR_RATE ~ condition', 'SCRI_AMPL ~ condition')
-# plotTitles = c('Arousals', 'Valences', 'Dominances', 'F0', 'Jitter', 'Shimmer', 'HNR', 'Voiced', 'SpeechRate')
-# plotTitles = c('F0', 'Jitter', 'Shimmer', 'HNR', 'VoicedPerSec', 'MeanVoicedLength')
-plotTitles = c('HR', 'HRV', 'EDA', 'SCR_RATE', 'SCRI_AMPL')
+# formulas = c('HR ~ condition', 'HRV ~ condition', 'EDA ~ condition', 'SCR_RATE ~ condition', 'SCRI_AMPL ~ condition')
+plotTitles = c('Arousals', 'Valences', 'Dominances', 'F0', 'Jitter', 'Shimmer', 'HNR', 'Voiced', 'SpeechRate')
+plotTitles = c('F0', 'Jitter', 'Shimmer', 'HNR', 'VoicedPerSec', 'MeanVoicedLength')
+# plotTitles = c('HR', 'HRV', 'EDA', 'SCR_RATE', 'SCRI_AMPL')
 
+data$fileNum = factor(data$fileNum)
 # for(i in 1:length(formulas)) {
-for(i in 2) {
+
+datatemp = data # Store the original dataframe
+data = data[data$F0semitoneFrom27.5Hz_sma3nz_amean != 0,] # Get rid of participants that get 0's for all data. This is probably bad
+for(i in 3) {
   formula <- paste0(formulas[i], ' + (1|participantNum)')
   # Model
   d0.1 <- lmer(formula,data=data)
@@ -92,7 +101,9 @@ for(i in 2) {
 
   Anova(chosenModel[[1]]) # Run Anova, double square brackets because of list properties
   print("Stats baseline vs control vs stress:")
-  print(emmeans(chosenModel[[1]], pairwise ~ condition , adjust ="fdr", type="response"))
+  # print(emmeans(chosenModel[[1]], pairwise ~ condition , adjust ="fdr", type="response")) # This is the right one for physiological
+  print(emmeans(chosenModel[[1]], pairwise ~ condition , adjust ="fdr", type="response")) # This is the right one for self-reports
+  
   # print("Stats time 1-2-3")
   # print(emmeans(chosenModel[[1]], pairwise ~ time , adjust ="fdr", type="response"))
   
