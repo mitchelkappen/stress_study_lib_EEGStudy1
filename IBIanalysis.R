@@ -20,7 +20,7 @@ nAGQ = 0
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path)) #Set WD to script location
 
 IBIdata <-
-  as.data.frame(read_parquet("df_tot_merged.parquet"))
+  as.data.frame(read_parquet("df_tot_merged_v2_ibi_pos_-2.parquet"))
 
 # Compute dataframe with relevant variables
 data <- data.frame(IBIdata[,c("user", "answered_correctly", "answered_in_time", "Running[Trial]",  "Trial", "Procedure[Block]")], select(IBIdata,contains("IBI_pos")))
@@ -35,10 +35,8 @@ data$Trial <- as.factor(data$Trial)
 data$Block <- as.factor(data$Block)
 
 # Something weird going on here still.. 
-data <- data[is.na(data$IBI_pos.5) == FALSE, ] # Take out all NA's for IBI's || Using IBI5 because that is where (in addition to generally missing data), some participants start missing data: probably has to do with 6seconds
-data <- data[is.na(data$IBI_pos.6) == FALSE, ] # Take out all NA's for IBI's || Using IBI5 because that is where (in addition to generally missing data), some participants start missing data: probably has to do with 6seconds
-data <- data[is.na(data$IBI_pos.7) == FALSE, ] # Take out all NA's for IBI's || Using IBI5 because that is where (in addition to generally missing data), some participants start missing data: probably has to do with 6seconds
-data <- data[is.na(data$IBI_pos8) == FALSE, ] # Take out all NA's for IBI's || Using IBI5 because that is where (in addition to generally missing data), some participants start missing data: probably has to do with 6seconds
+
+data <- data[is.na(data$IBI_pos.4) == FALSE, ] # Take out all NA's for IBI's 
 
 sprintf("Length of all data is: %.0f, and remaining size after removing NA is: %.0f", nrow(IBIdata), nrow(data))
 dataBackup <- data #backup the data
@@ -50,11 +48,14 @@ data <- melt(dataBackup, id.vars = groupingVars) # Get it to long format
 names(data)[names(data) == "variable"] <- "IBIno"
 names(data)[names(data) == "value"] <- "IBIdelta_ms"
 data$IBIno <- as.factor(data$IBIno)
-levels(data$IBIno) = c("-7","-6","-5","-4","-3","-2", "1", "0", "1", "2", "3", "4", "5", "6", "7", "8")
+levels(data$IBIno) = c("-7","-6","-5","-4","-3","-2", "-1", "0", "1", "2", "3", "4", "5", "6", "7", "8")
+data$IBIno <- as.ordered(data$IBIno) 
+
 
 
 # Formula time
 formulas = c('IBIdelta_ms ~ Block * IBIno', 'arousal ~ fileNum')
+IBI_ref ~ Group*Expectancy*IBInr + (1|File)
 
 plotTitles = c('Control vs Stress', 'Arousal')
 
@@ -69,9 +70,9 @@ for(i in 1) {
   tabel <- cbind(AIC(d0.1))
   chosenModel = modelNames[which(tabel == min(tabel))] # Get model with lowest AIC
   
-  Anova(chosenModel[[1]]) # Run Anova, double square brackets because of list properties
+  print(Anova(chosenModel[[1]])) # Run Anova, double square brackets because of list properties
   print("Stats baseline vs control vs stress:")
-  print(emmeans(chosenModel[[1]], pairwise ~ Block , adjust ="fdr", type="response")) # This is the right one for self-reports
+  print(emmeans(chosenModel[[1]], pairwise ~ Block * IBIno, adjust ="fdr", type="response")) # This is the right one for self-reports
   
   # Plotting
   par(mfcol = c(1, 1))
@@ -153,7 +154,34 @@ ggplot(data_summary, aes(x=IBIno, y=IBIdelta_ms, colour=Block, group = Block)) +
   geom_point()
 
 
+# Stats vanaf IBI0
+# Ref ibi-2
 
+## Tutorial stuff
 
+dat = structure(list(sub.rate = structure(c(1L, 1L, 1L, 1L, 1L, 2L, 2L, 
+                                            2L, 2L, 2L, 3L, 3L, 3L, 3L, 3L, 4L, 4L, 4L, 4L, 4L, 5L, 5L, 5L, 
+                                            5L, 5L), .Label = c("A.1", "A.2", "B.1", "B.2", "control"), class = "factor"), 
+                     resp = c(5.5, 4.9, 6.1, 3.6, 6.1, 3.5, 3, 4.1, 5, 4.6, 7.3, 
+                              5.6, 4.8, 7.2, 6.2, 4.3, 6.6, 6.5, 5.5, 7.1, 5.4, 6.7, 6.8, 
+                              8.5, 6.1)), row.names = c(NA, -25L), class = "data.frame")
 
+fit1 = lm(resp ~ sub.rate, data = dat)
+# emmeans(fit1, specs = trt.vs.ctrlk ~ sub.rate)
 
+emm1 = emmeans(fit1, specs = ~ sub.rate)
+emm1
+
+A2 = c(0, 1, 0, 0, 0)
+B2 = c(0, 0, 0, 1, 0)
+contrast(emm1, method = list("A2 - B2" = A2 - B2) )
+
+emmeans(fit1, specs = pairwise ~ sub.rate, 
+        at = list(sub.rate = c("A.2", "B.2") ) )
+
+contrast(emm1, method = list("A2 - B2" = A2 - B2,
+                             "B2 - A2" = B2 - A2),
+         adjust = "fdr",
+         type = "response")
+
+# As is true of EMM summaries with type = "response", the tests and confidence intervals are done before back-transforming. The ratios estimated here are actually ratios of geometric means. In general, a model with a log response is in fact a model for relative effects of any of its linear predictors, and this back-transformation to ratios goes hand-in-hand with that.
