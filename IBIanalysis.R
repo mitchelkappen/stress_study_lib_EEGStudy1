@@ -12,9 +12,13 @@ library(pander)
 library(dplyr)
 library(arrow)
 library(car)
+library(ggplot2)
+library(effects)
+library(ggsignif)
+library(gridExtra) #gridarrange
 
 nAGQ = 0
-
+IBIlength = "big"
 ############################# CARDIO DATA ######################
 # Set and Get directories
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path)) #Set WD to script location
@@ -23,20 +27,24 @@ IBIdata <-
   as.data.frame(read_parquet("df_tot_merged_v2_ibi_pos_-2.parquet"))
 
 # Compute dataframe with relevant variables
-data <- data.frame(IBIdata[,c("user", "answered_correctly", "answered_in_time", "Running[Trial]",  "Trial", "Procedure[Block]")], select(IBIdata,contains("IBI_pos")))
-groupingVars <- c("pptNum", "answered_correctly", "answered_in_time", "subBlock", "Trial", "Block") # Give easier to use names
-names(data)[1:6] <- groupingVars
+data <- data.frame(IBIdata[,c("user", "answered_correctly", "answered_in_time", "Running[Trial]",  "Trial", "Procedure[Block]", "sex", "answered_correctly")], select(IBIdata,contains("IBI_pos")))
+groupingVars <- c("pptNum", "answered_correctly", "answered_in_time", "subBlock", "Trial", "Block", "Sex", "Correct") # Give easier to use names
+names(data)[1:8] <- groupingVars
 
+# Factorize relevant variables and clean up data
 data$pptNum <- as.factor(data$pptNum)
 data$answered_correctly <- as.factor(data$answered_correctly)
 data$answered_in_time <- as.factor(data$answered_in_time)
 data$subBlock <- as.factor(data$subBlock)
 data$Trial <- as.factor(data$Trial)
 data$Block <- as.factor(data$Block)
+data$Sex <- as.factor(data$Sex)
+data$Correct <- as.factor(data$Correct)
+data$answered_in_time <- as.factor(data$answered_in_time)
+data$subBlock <- as.factor(data$subBlock)
 
-# Something weird going on here still.. 
-
-data <- data[is.na(data$IBI_pos.4) == FALSE, ] # Take out all NA's for IBI's 
+data <- data[is.na(data$IBI_pos.2) == FALSE, ] # Take out all NA's for IBI's 
+data <- data[data$answered_in_time == TRUE, ] # Take out the timed-out trials
 
 sprintf("Length of all data is: %.0f, and remaining size after removing NA is: %.0f", nrow(IBIdata), nrow(data))
 dataBackup <- data #backup the data
@@ -44,144 +52,170 @@ dataBackup <- data #backup the data
 # data <- data[,1:(length(dataBackup)-2)] # There are NA's for IBI7 and IBI8 for some participants. Probably has to do with the 6 second stuff. Look into, erase for now
 
 data <- melt(dataBackup, id.vars = groupingVars) # Get it to long format
-
 names(data)[names(data) == "variable"] <- "IBIno"
 names(data)[names(data) == "value"] <- "IBIdelta_ms"
-data$IBIno <- as.factor(data$IBIno)
-levels(data$IBIno) = c("-7","-6","-5","-4","-3","-2", "-1", "0", "1", "2", "3", "4", "5", "6", "7", "8")
-data$IBIno <- as.ordered(data$IBIno) 
 
-
-
-# Formula time
-formulas = c('IBIdelta_ms ~ Block * IBIno', 'arousal ~ fileNum')
-IBI_ref ~ Group*Expectancy*IBInr + (1|File)
-
-plotTitles = c('Control vs Stress', 'Arousal')
-
-for(i in 1) {
-  formula <- paste0(formulas[i], ' + (1|pptNum)')
-  # Model
-  d0.1 <- lmer(formula,data=data)
-
-  modelNames = c(d0.1)
-  
-  # Model Selection
-  tabel <- cbind(AIC(d0.1))
-  chosenModel = modelNames[which(tabel == min(tabel))] # Get model with lowest AIC
-  
-  print(Anova(chosenModel[[1]])) # Run Anova, double square brackets because of list properties
-  print("Stats baseline vs control vs stress:")
-  print(emmeans(chosenModel[[1]], pairwise ~ Block * IBIno, adjust ="fdr", type="response")) # This is the right one for self-reports
-  
-  # Plotting
-  par(mfcol = c(1, 1))
-  plotAROUSAL <- pirateplot(
-    formula = formulas[i],
-    data = data,
-    theme = 1,
-    pal = "info",
-    main = plotTitles[i],
-    bean.f.o = .6, # Bean fill
-    point.o = .3,  # Points
-    inf.f.o = .7,  # Inference fill
-    inf.b.o = .8,  # Inference border
-    avg.line.o = 1,  # Average line
-    # bar.f.o = .5, # Bar
-    inf.f.col = "white",  # Inf fill col
-    inf.b.col = "black",  # Inf border col
-    avg.line.col = "black",  # avg line col
-    bar.f.col = gray(.8),  # bar filling color
-    point.pch = 21,
-    point.bg = "white",
-    point.col = "black",
-    point.cex = .7,
-    
-    xlab = "Sequential IBI",
-    ylab = "Delta IBI (ms)"
-  )
+if(IBIlength == "small"){
+  print('hi')
+  # Create a plotting variable from IBI-4 for clarity in the viz
+  plotdata = data[!(data$IBIno=="IBI_pos.7" | data$IBIno=="IBI_pos.6" | data$IBIno=="IBI_pos.5"), ]
+  # But create a stats dataframe where the irrelevant datapoint will not be considered
+  data = data[!(data$IBIno=="IBI_pos.7" | data$IBIno=="IBI_pos.6" | data$IBIno=="IBI_pos.5" | data$IBIno=="IBI_pos.4" | data$IBIno=="IBI_pos.3" | data$IBIno=="IBI_pos.2" | data$IBIno=="IBI_pos.1"), ]
+} else if (IBIlength == "big"){
+  data = data[!(data$IBIno=="IBI_pos.7" | data$IBIno=="IBI_pos.6" | data$IBIno=="IBI_pos.5" | data$IBIno=="IBI_pos.4"), ]
 }
 
+levels(data$IBIno) = c("-7","-6","-5","-4","-3","-2", "-1", "0", "1", "2", "3", "4", "5", "6", "7", "8")
+data$IBIno <- as.factor(data$IBIno)
+data$IBIno <- as.ordered(data$IBIno) 
 
-ggplot(data, aes(Time, Value)) + 
-  geom_smooth(stat = 'summary', fun.data = mean_cl_quantile)
+############ STATISTICS #############
 
-ggplot(data=data, aes(x=IBIno, y=IBIdelta_ms, group=Block)) +
-  geom_line()+
-  geom_point()
+data$subBlock2 = data$subBlock
+levels(data$subBlock2) = c("1","2","3","1","2","3")
 
-
-plottest1 <- ggplot(data, aes(x=IBIno, y=IBIdelta_ms, fill=Block))
-
-
-plottest1 <- ggplot(data, aes(x=IBIno, y=IBIdelta_ms, fill=Block)) +
-  geom_bar(position=position_dodge(.9), colour="black", stat="identity") +
-  geom_errorbar(position=position_dodge(.9), width=.125, aes(ymin=emmean-SE, ymax=emmean+SE)) +
-  coord_cartesian(ylim = c(0, 75)) +
-  theme_bw(base_size = 14) +
-  theme(legend.position="bottom") +
-  labs(y = "Counterfactual thinking") +
-  labs(x = "Self-critical rumination") +
-  ggtitle("A")  +
-  geom_signif(annotations = c(formatC("*", digits=3)), y_position = c(55), xmin=c(0.775), xmax=c(1.225), textsize = 6, vjust = 0.5, tip_length = c(0.025, 0.025)) +
-  geom_signif(annotations = c(formatC("*", digits=3)), y_position = c(73), xmin=c(2.775), xmax=c(3.225), textsize = 6, vjust = 0.5, tip_length = c(0.025, 0.025))
+# Full formula
+formula <- IBIdelta_ms ~ Block * IBIno * subBlock2 + (1|pptNum)
 
 # Load document where functions are stored
 source("functions.R")
 
-#### LINE PLOTTING TIME ####
-# First, make a new dataframe with the means per group
-
-library(ggplot2)
 # http://www.cookbook-r.com/Graphs/Plotting_means_and_error_bars_(ggplot2)/
+# Make a data summary based on grouping vars
 
-# data_summary <- summarySE(data, measurevar="IBIdelta_ms", groupvars=c("Block"))
-data_summary <- summarySE(data, measurevar="IBIdelta_ms", groupvars=c("Block","IBIno"))
-
+################## PLOTTING ##########
+# Plot Settings
 # The errorbars overlapped, so use position_dodge to move them horizontally
 pd <- position_dodge(0.1) # move them .05 to the left and right
 
-# Standard error of the mean
-ggplot(data_summary, aes(x=IBIno, y=IBIdelta_ms, colour=Block, group = Block)) + 
-  geom_errorbar(aes(ymin=IBIdelta_ms-se, ymax=IBIdelta_ms+se), width=.1, position=pd) +
-  geom_line() +
-  geom_point()
+### Plot 1 - Control vs Stress
+d0.1 <- lmer(formula,data=data) # Fit the lmer
+emmeans0.1 <- emmeans(d0.1, pairwise ~ Block | IBIno, adjust ="fdr", type = "response") # Compute a variable containing all emmeans/contrasts
+emm0.1 <- summary(emmeans0.1)$emmeans
 
-# 95% confidence intervals
-ggplot(data_summary, aes(x=IBIno, y=IBIdelta_ms, colour=Block, group = Block)) + 
-  geom_errorbar(aes(ymin=IBIdelta_ms-ci, ymax=IBIdelta_ms+ci), width=.1, position=pd) +
-  geom_line() +
-  geom_point()
+Anova(d0.1)
+plot(effect("Block:IBIno:subBlock2", d0.1)) #just to check
+plot(effect("IBIno:subBlock2", d0.1)) #just to check
+plot(effect("Block:IBIno", d0.1)) #just to check
+
+print("We see a main effect for control vs stress block, but not an interaction effect of block x IBIno. So we continue with post-hoc testing")
+print("Also an effect for subblock is present, but not for subblock x Block.")
+
+if(IBIlength == "small"){
+  xplotPosition = 4.1
+} else if(IBIlength == "big"){
+  xplotPosition = 7.1
+}
+## LINEPLOT
+ggplot(emm0.1, aes(x=IBIno, y=emmean, color=Block)) +
+  geom_point(size = 1) + 
+  geom_line(aes(group = Block),size = 1)+
+  geom_errorbar(width=.125, aes(ymin=emmean-SE, ymax=emmean+SE), position=pd)+
+  geom_hline(yintercept=0, linetype="dashed")+
+  theme_bw(base_size = 8)+
+  theme(legend.position="bottom")+
+  theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank())+ 
+  ggtitle("Feedback: Group x IBI")+
+  labs(y = "Delta IBI (s)")+
+  annotate(geom="text", x=xplotPosition, y=-37.5, label="**", color="#000000")+ #IBI3
+  annotate(geom="text", x=xplotPosition + 1, y=-34.5, label="**", color="#000000")+ #IBI4
+  annotate(geom="text", x=xplotPosition + 2, y=-26, label="***", color="#000000")+ #IBI5
+  annotate(geom="text", x=xplotPosition + 3, y=-17, label="***", color="#000000")+ #IBI6
+  annotate(geom="text", x=xplotPosition + 4, y=-12.5, label="**", color="#000000") #IBI7
+
+# http://www.cookbook-r.com/Graphs/Plotting_means_and_error_bars_(ggplot2)/
+
+#### SUBBLOCK PLOTS #### Block:IBIno:subBlock2
+emmeans0.2 <- emmeans(d0.1, pairwise ~ Block | IBIno | subBlock2, adjust ="fdr", type = "response") # Compute a variable containing all emmeans/contrasts
+emm0.2 <- summary(emmeans0.2)$emmeans
+ggplot(emm0.2, aes(x=IBIno, y=emmean, group = 3, colour = Block, linetype = subBlock2, shape = subBlock2)) +
+  geom_point(size = 3) + 
+  geom_line(aes(group = interaction(Block, subBlock2)),size = 1)+
+  geom_errorbar(width=.125, aes(ymin=emmean-SE, ymax=emmean+SE), position=pd)+
+  geom_hline(yintercept=0, linetype="dashed")+
+  theme_bw(base_size = 8)+
+  theme(legend.position="bottom")+
+  theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank())+ 
+  ggtitle("Feedback: Group x IBI")+
+  labs(y = "Delta IBI (s)")
+  # annotate(geom="text", x=xplotPosition, y=-37.5, label="**", color="#000000")+ #IBI3
+  # annotate(geom="text", x=xplotPosition + 1, y=-34.5, label="**", color="#000000")+ #IBI4
+  # annotate(geom="text", x=xplotPosition + 2, y=-26, label="***", color="#000000")+ #IBI5
+  # annotate(geom="text", x=xplotPosition + 3, y=-17, label="***", color="#000000")+ #IBI6
+  # annotate(geom="text", x=xplotPosition + 4, y=-12.5, label="**", color="#000000") #IBI7
+
+#### SUBBLOCK PLOTS #### Block:IBIno:subBlock2 ## 1x3 plots
+par(mfrow = c(1, 3))
+
+# SubBlock 1:
+block1Data = emm0.2[emm0.2$subBlock2 == 1, ]
+b1 <- ggplot(block1Data, aes(x=IBIno, y=emmean, group = 1, colour = Block)) +
+  geom_point(size = 3) + 
+  geom_line(aes(group = Block),size = 1)+
+  geom_errorbar(width=.125, aes(ymin=emmean-SE, ymax=emmean+SE), position=pd)+
+  geom_hline(yintercept=0, linetype="dashed")+
+  theme_bw(base_size = 8)+
+  theme(legend.position="bottom")+
+  theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank())+ 
+  ggtitle("Feedback: Group x IBI at subBlock 1")+
+  labs(y = "Delta IBI (s)") +
+  ylim(-53, 14) +
+  annotate(geom="text", x=xplotPosition, y=-30, label="**", color="#000000")+ #IBI3
+  annotate(geom="text", x=xplotPosition + 1, y=-23.5, label="*", color="#000000")+ #IBI4
+  annotate(geom="text", x=xplotPosition + 2, y=-15.5, label="**", color="#000000")+ #IBI5
+  annotate(geom="text", x=xplotPosition + 3, y=-9, label="**", color="#000000")+ #IBI6
+  annotate(geom="text", x=xplotPosition + 4, y=-8, label="*", color="#000000") #IBI7
+
+# SubBlock 2:
+block2Data = emm0.2[emm0.2$subBlock2 == 2, ]
+b2 <- ggplot(block2Data, aes(x=IBIno, y=emmean, group = 1, colour = Block)) +
+  geom_point(size = 3) + 
+  geom_line(aes(group = Block),size = 1)+
+  geom_errorbar(width=.125, aes(ymin=emmean-SE, ymax=emmean+SE), position=pd)+
+  geom_hline(yintercept=0, linetype="dashed")+
+  theme_bw(base_size = 8)+
+  theme(legend.position="bottom")+
+  theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank())+ 
+  ggtitle("Feedback: Group x IBI at subBlock 2")+
+  labs(y = "Delta IBI (s)") +
+  ylim(-53, 14) +
+  annotate(geom="text", x=xplotPosition + 2, y=-28, label="*", color="#000000")+ #IBI5
+  annotate(geom="text", x=xplotPosition + 3, y=-19, label="*", color="#000000")+ #IBI6
+  annotate(geom="text", x=xplotPosition + 4, y=-13, label="*", color="#000000") #IBI7
+
+# SubBlock 3:
+block3Data = emm0.2[emm0.2$subBlock2 == 3, ]
+b3 <- ggplot(block3Data, aes(x=IBIno, y=emmean, group = 1, colour = Block)) +
+  geom_point(size = 3) + 
+  geom_line(aes(group = Block),size = 1)+
+  geom_errorbar(width=.125, aes(ymin=emmean-SE, ymax=emmean+SE), position=pd)+
+  geom_hline(yintercept=0, linetype="dashed")+
+  theme_bw(base_size = 8)+
+  theme(legend.position="bottom")+
+  theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank())+ 
+  ggtitle("Feedback: Group x IBI at subBlock 3")+
+  labs(y = "Delta IBI (s)") +
+  ylim(-53, 14) +
+  annotate(geom="text", x=xplotPosition + 3, y=-23.5, label="*", color="#000000") #IBI6
 
 
-# Stats vanaf IBI0
-# Ref ibi-2
 
-## Tutorial stuff
+grid.arrange(b1, b2, b3, ncol=3, nrow =1)
 
-dat = structure(list(sub.rate = structure(c(1L, 1L, 1L, 1L, 1L, 2L, 2L, 
-                                            2L, 2L, 2L, 3L, 3L, 3L, 3L, 3L, 4L, 4L, 4L, 4L, 4L, 5L, 5L, 5L, 
-                                            5L, 5L), .Label = c("A.1", "A.2", "B.1", "B.2", "control"), class = "factor"), 
-                     resp = c(5.5, 4.9, 6.1, 3.6, 6.1, 3.5, 3, 4.1, 5, 4.6, 7.3, 
-                              5.6, 4.8, 7.2, 6.2, 4.3, 6.6, 6.5, 5.5, 7.1, 5.4, 6.7, 6.8, 
-                              8.5, 6.1)), row.names = c(NA, -25L), class = "data.frame")
 
-fit1 = lm(resp ~ sub.rate, data = dat)
-# emmeans(fit1, specs = trt.vs.ctrlk ~ sub.rate)
 
-emm1 = emmeans(fit1, specs = ~ sub.rate)
-emm1
 
-A2 = c(0, 1, 0, 0, 0)
-B2 = c(0, 0, 0, 1, 0)
-contrast(emm1, method = list("A2 - B2" = A2 - B2) )
 
-emmeans(fit1, specs = pairwise ~ sub.rate, 
-        at = list(sub.rate = c("A.2", "B.2") ) )
 
-contrast(emm1, method = list("A2 - B2" = A2 - B2,
-                             "B2 - A2" = B2 - A2),
-         adjust = "fdr",
-         type = "response")
 
-# As is true of EMM summaries with type = "response", the tests and confidence intervals are done before back-transforming. The ratios estimated here are actually ratios of geometric means. In general, a model with a log response is in fact a model for relative effects of any of its linear predictors, and this back-transformation to ratios goes hand-in-hand with that.
+
+
+
+
+
+
+
+
+
+
+# Correct/incorrect
