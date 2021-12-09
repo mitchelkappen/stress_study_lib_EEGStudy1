@@ -18,7 +18,7 @@ library(ggsignif)
 library(gridExtra) #gridarrange
 
 nAGQ = 0
-IBIlength = "big"
+IBIlength = "small"
 ############################# CARDIO DATA ######################
 # Set and Get directories
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path)) #Set WD to script location
@@ -128,24 +128,6 @@ ggplot(emm0.1, aes(x=IBIno, y=emmean, color=Block)) +
 #### SUBBLOCK PLOTS #### Block:IBIno:subBlock2
 emmeans0.2 <- emmeans(d0.1, pairwise ~ Block | IBIno | subBlock2, adjust ="fdr", type = "response") # Compute a variable containing all emmeans/contrasts
 emm0.2 <- summary(emmeans0.2)$emmeans
-ggplot(emm0.2, aes(x=IBIno, y=emmean, group = 3, colour = Block, linetype = subBlock2, shape = subBlock2)) +
-  geom_point(size = 3) + 
-  geom_line(aes(group = interaction(Block, subBlock2)),size = 1)+
-  geom_errorbar(width=.125, aes(ymin=emmean-SE, ymax=emmean+SE), position=pd)+
-  geom_hline(yintercept=0, linetype="dashed")+
-  theme_bw(base_size = 8)+
-  theme(legend.position="bottom")+
-  theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank())+ 
-  ggtitle("Feedback: Group x IBI")+
-  labs(y = "Delta IBI (s)")
-  # annotate(geom="text", x=xplotPosition, y=-37.5, label="**", color="#000000")+ #IBI3
-  # annotate(geom="text", x=xplotPosition + 1, y=-34.5, label="**", color="#000000")+ #IBI4
-  # annotate(geom="text", x=xplotPosition + 2, y=-26, label="***", color="#000000")+ #IBI5
-  # annotate(geom="text", x=xplotPosition + 3, y=-17, label="***", color="#000000")+ #IBI6
-  # annotate(geom="text", x=xplotPosition + 4, y=-12.5, label="**", color="#000000") #IBI7
-
-#### SUBBLOCK PLOTS #### Block:IBIno:subBlock2 ## 1x3 plots
-par(mfrow = c(1, 3))
 
 # SubBlock 1:
 block1Data = emm0.2[emm0.2$subBlock2 == 1, ]
@@ -203,19 +185,31 @@ b3 <- ggplot(block3Data, aes(x=IBIno, y=emmean, group = 1, colour = Block)) +
 grid.arrange(b1, b2, b3, ncol=3, nrow =1)
 
 
+############ Correct/incorrect ############
+# Just out of curiosity, let's see how correct/incorrect are different in general
 
+# Formula
+formula <- IBIdelta_ms ~ Block * IBIno * subBlock2 * Correct + (1|pptNum)
 
+### Plot 1 - Control vs Stress
+d1.1 <- lmer(formula,data=data) # Fit the lmer
+emmeans1.1 <- emmeans(d1.1, pairwise ~ Correct | IBIno, adjust ="fdr", type = "response") # Compute a variable containing all emmeans/contrasts
+emm1.1 <- summary(emmeans1.1)$emmeans
 
+Anova(d1.1)
 
-
-
-
-
-
-
-
-
-
-
-
-# Correct/incorrect
+## LINEPLOT
+ggplot(emm1.1, aes(x=IBIno, y=emmean, color=Correct)) +
+  geom_point(size = 1) + 
+  geom_line(aes(group = Correct),size = 1)+
+  geom_errorbar(width=.125, aes(ymin=emmean-SE, ymax=emmean+SE), position=pd)+
+  geom_hline(yintercept=0, linetype="dashed")+
+  theme_bw(base_size = 8)+
+  theme(legend.position="bottom")+
+  theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank())+ 
+  ggtitle("Feedback: Correct x IBI")+
+  labs(y = "Delta IBI (s)")+
+  annotate(geom="text", x=xplotPosition-2, y=-1, label="**", color="#000000")+ #IBI1
+  annotate(geom="text", x=xplotPosition-1, y=-24, label="***", color="#000000")+ #IBI2
+  annotate(geom="text", x=xplotPosition, y=-35.5, label="***", color="#000000")+ #IBI3
+  annotate(geom="text", x=xplotPosition + 5, y=-14.5, label="**", color="#000000") #IBI8
