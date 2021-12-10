@@ -213,3 +213,119 @@ ggplot(emm1.1, aes(x=IBIno, y=emmean, color=Correct)) +
   annotate(geom="text", x=xplotPosition-1, y=-24, label="***", color="#000000")+ #IBI2
   annotate(geom="text", x=xplotPosition, y=-35.5, label="***", color="#000000")+ #IBI3
   annotate(geom="text", x=xplotPosition + 5, y=-14.5, label="**", color="#000000") #IBI8
+
+
+#####################################
+###### BLOCK-BY-BLOCK ANALYSIS ######
+#####################################
+
+HRVdata <-
+  as.data.frame(read_parquet("df_hrv_feats.parquet"))
+
+# # Some data is incomplete so kick out
+# HRVdata <- HRVdata[HRVdata$user != 15, ]
+# HRVdata <- HRVdata[HRVdata$user != 64, ]
+# HRVdata <- HRVdata[HRVdata$user != 77, ]
+
+HRVblockdata <- NULL
+HRVblockdataDELTA <- NULL
+# loop over all participants
+for (i in unique(HRVdata$user)){
+  # First check if all the data is present for this participant, else we're not going to use it
+  if(sum(HRVdata$user == i ) == 9){
+    # Add resting blocks
+    rmssdrest = HRVdata$rmssd[HRVdata$user == i & HRVdata$block == "EEG_rest"]
+    hfrest = HRVdata$hfnu[HRVdata$user == i & HRVdata$block == "EEG_rest"]
+    HRVblockdata = rbind(HRVblockdata, data.frame("user" = i, "rmssd" = rmssdrest, "hf" = hfrest, "block" = "baseline"))
+    
+    ### Control Block
+    blockIndex = HRVdata$block == "Controle1" | HRVdata$block == "Controle2" | HRVdata$block == "Controle3"
+    index = HRVdata$user == i & blockIndex
+    totalN = sum(HRVdata$N[index])
+    rmssd = sum(HRVdata$N[index] * HRVdata$rmssd[index]) / totalN
+    hf = sum(HRVdata$N[index] * HRVdata$hfnu[index]) / totalN
+    
+    ### Add to dataframe
+    HRVblockdata = rbind(HRVblockdata, data.frame("user" = i, "rmssd" =  rmssd, "hf" = hf, "block" = "control"))
+    HRVblockdataDELTA = rbind(HRVblockdataDELTA, data.frame("user" = i, "rmssd" = rmssd - rmssdrest, "hf" = hf - hfrest, "block" = "control"))
+
+    rmssdrest = HRVdata$rmssd[HRVdata$user == i & HRVdata$block == "Control_recovery"]
+    hfrest = HRVdata$hfnu[HRVdata$user == i & HRVdata$block == "Control_recovery"]
+    HRVblockdata = rbind(HRVblockdata, data.frame("user" = i, "rmssd" = rmssdrest, "hf" = hfrest, "block" = "midrest"))
+    
+    # Stress Block
+    blockIndex = HRVdata$block == "Stress1" | HRVdata$block == "Stress2" | HRVdata$block == "Stress3"
+    index = HRVdata$user == i & blockIndex
+    totalN = sum(HRVdata$N[index])
+    rmssd = sum(HRVdata$N[index] * HRVdata$rmssd[index]) / totalN
+    hf = sum(HRVdata$N[index] * HRVdata$hfnu[index]) / totalN
+    
+    ### Add to dataframe
+    HRVblockdata = rbind(HRVblockdata, data.frame("user" = i, rmssd, hf, "block" = "stress"))
+    HRVblockdataDELTA = rbind(HRVblockdataDELTA, data.frame("user" = i, "rmssd" = rmssd - rmssdrest, "hf" = hf - hfrest, "block" = "stress"))
+
+  } else{
+    print(sprintf("Incomplete data for participant: %s", i))
+    sprintf("Incomplete data for participant: %s", i)
+  }
+}
+
+
+
+HRVblockdataDELTA$user <- as.factor(HRVblockdataDELTA)
+HRVblockdataDELTA$block <- as.factor(HRVblockdataDELTA$block)
+
+formulas = c('rmssd ~ block', 'hf ~ block')
+plotTitles = c('RMSSD', 'HF')
+# Model
+
+for(i in 1) {
+  
+  formula <- paste0(formulas[i], ' + (1|user)')
+  d2.1 <- lmer(formula,data=HRVblockdataDELTA)
+  
+  emmeans2.1 <- emmeans(d2.1, pairwise ~ block, adjust ="fdr", type = "response") # Compute a variable containing all emmeans/contrasts
+  emm2.1 <- summary(emmeans2.1)$emmeans
+  
+  print(Anova(d2.1))
+  
+  plot(effect("block", d2.1)) #just to check
+  
+  # VIZ
+  par(mfcol = c(1, 1))
+  plot <- pirateplot(
+    formula = formulas[i],
+    data = HRVblockdataDELTA,
+    theme = 1,
+    pal = "info",
+    main = plotTitles[i],
+    bean.f.o = .6, # Bean fill
+    point.o = .3,  # Points
+    inf.f.o = .7,  # Inference fill
+    inf.b.o = .8,  # Inference border
+    avg.line.o = 1,  # Average line
+    # bar.f.o = .5, # Bar
+    inf.f.col = "white",  # Inf fill col
+    inf.b.col = "black",  # Inf border col
+    avg.line.col = "black",  # avg line col
+    bar.f.col = gray(.8),  # bar filling color
+    point.pch = 21,
+    point.bg = "white",
+    point.col = "black",
+    point.cex = .7,
+    
+    xlab = "",
+    # ylim = c(0, 160)
+  
+  )
+
+
+}
+
+
+
+
+
+
+
+
