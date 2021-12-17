@@ -18,7 +18,7 @@ library(car)
 library(arrow)
 library(tibble)
 
-nAGQ = 0 # Set to 1 for eventual analysis
+nAGQ = 1 # Set to 1 for eventual analysis
 
 BASEPATH <- "D:/Data/EEG_Study_1/uz_study/features/"
 plotPrefix <- paste0(BASEPATH, "figures/")
@@ -76,37 +76,40 @@ data = data[data$HNRdBACF_sma3nz_amean > 0, ] # Kick out all the lines with nega
 ######## STATS AND VIZ LETS GO ########
 
 # formulas = c('F0semitoneFrom27.5Hz_sma3nz_amean ~ time', 'jitterLocal_sma3nz_amean ~ time', 'shimmerLocaldB_sma3nz_amean ~ time', 'HNRdBACF_sma3nz_amean ~ time', 'VoicedSegmentsPerSec ~ time', 'MeanVoicedSegmentLengthSec ~ time')
-# formulas = c('F0semitoneFrom27.5Hz_sma3nz_amean ~ block', 'jitterLocal_sma3nz_amean ~ block', 'shimmerLocaldB_sma3nz_amean ~ block', 'HNRdBACF_sma3nz_amean ~ block', 'VoicedSegmentsPerSec ~ block', 'MeanVoicedSegmentLengthSec ~ block', 'valence ~ block', 'arousal ~ block')
-# formulas = c('valence ~ time * block', 'arousal ~ time * block')
-formulas = c('valence ~ fileNum', 'arousal ~ fileNum')
+formulas = c('F0semitoneFrom27.5Hz_sma3nz_amean ~ block', 'jitterLocal_sma3nz_amean ~ block', 'shimmerLocaldB_sma3nz_amean ~ block', 'HNRdBACF_sma3nz_amean ~ block', 'VoicedSegmentsPerSec ~ block', 'MeanVoicedSegmentLengthSec ~ block', 'valence ~ block', 'arousal ~ block')
+# formulas = c('valence ~ block', 'arousal ~ block')
+# formulas = c('valence ~ fileNum', 'arousal ~ fileNum')
 
-# plotTitles = c('F0', 'Jitter', 'Shimmer', 'HNR', 'VoicedPerSec', 'MeanVoicedLength', 'Valence', 'Arousal')
-plotTitles = c('Valence', 'Arousal')
+plotTitles = c('F0', 'Jitter', 'Shimmer', 'HNR', 'VoicedPerSec', 'MeanVoicedLength', 'Valence', 'Arousal')
+# plotTitles = c('Valence', 'Arousal')
 
 # for(i in 1:length(formulas)) {
-for(i in 1) {
+for(i in 6) {
   formula <- paste0(formulas[i], ' + (1|participantNum)')
   # Model
   d0.1 <- lmer(formula,data=data)
-  d0.2 <- glmer(formula,data=data, family = gaussian(link = "inverse"),glmerControl(optimizer= "bobyqa", optCtrl = list(maxfun = 100000)),nAGQ = nAGQ)
-  d0.3 <- glmer(formula,data=data, family = gaussian(link = "log"),glmerControl(optimizer= "bobyqa", optCtrl = list(maxfun = 100000)),nAGQ = nAGQ)
+  # d0.2 <- glmer(formula,data=data, family = gaussian(link = "inverse"),glmerControl(optimizer= "bobyqa", optCtrl = list(maxfun = 100000)),nAGQ = nAGQ)
+  # d0.3 <- glmer(formula,data=data, family = gaussian(link = "log"),glmerControl(optimizer= "bobyqa", optCtrl = list(maxfun = 100000)),nAGQ = nAGQ)
   
   d0.4 <- glmer(formula,data=data, family = Gamma(link = "identity"),glmerControl(optimizer= "bobyqa", optCtrl = list(maxfun = 100000)),nAGQ = nAGQ)
-  d0.5 <- glmer(formula,data=data, family = Gamma(link = "inverse"),glmerControl(optimizer= "bobyqa", optCtrl = list(maxfun = 100000)),nAGQ = nAGQ)
-  d0.6 <- glmer(formula,data=data, family = Gamma(link = "log"),glmerControl(optimizer= "bobyqa", optCtrl = list(maxfun = 100000)),nAGQ = nAGQ)
+  # d0.5 <- glmer(formula,data=data, family = Gamma(link = "inverse"),glmerControl(optimizer= "bobyqa", optCtrl = list(maxfun = 100000)),nAGQ = nAGQ)
+  # d0.6 <- glmer(formula,data=data, family = Gamma(link = "log"),glmerControl(optimizer= "bobyqa", optCtrl = list(maxfun = 100000)),nAGQ = nAGQ)
   
   d0.7 <- glmer(formula,data=data, family = inverse.gaussian(link = "identity"),glmerControl(optimizer= "bobyqa", optCtrl = list(maxfun = 100000)),nAGQ = nAGQ)
-  d0.8 <- glmer(formula,data=data, family = inverse.gaussian(link = "inverse"),glmerControl(optimizer= "bobyqa", optCtrl = list(maxfun = 100000)),nAGQ = nAGQ)
-  d0.9 <- glmer(formula,data=data, family = inverse.gaussian(link = "log"),glmerControl(optimizer= "bobyqa", optCtrl = list(maxfun = 100000)),nAGQ = nAGQ)
+  # d0.8 <- glmer(formula,data=data, family = inverse.gaussian(link = "inverse"),glmerControl(optimizer= "bobyqa", optCtrl = list(maxfun = 100000)),nAGQ = nAGQ)
+  # d0.9 <- glmer(formula,data=data, family = inverse.gaussian(link = "log"),glmerControl(optimizer= "bobyqa", optCtrl = list(maxfun = 100000)),nAGQ = nAGQ)
   
-  modelNames = c(d0.1,d0.2,d0.3,d0.4,d0.5,d0.6,d0.7,d0.8,d0.9)
+  # modelNames = c(d0.1,d0.4,d0.7)
+  modelNames = c(d0.1)
   
   # Model Selection
-  tabel <- cbind(AIC(d0.1), AIC(d0.2), AIC(d0.3), AIC(d0.4), AIC(d0.5), AIC(d0.6), AIC(d0.7), AIC(d0.8), AIC(d0.9))
+  # tabel <- cbind(AIC(d0.1), AIC(d0.4), AIC(d0.7))
+  tabel <- cbind(AIC(d0.1))
+  
   chosenModel = modelNames[which(tabel == min(tabel))] # Get model with lowest AIC
   
   Anova(chosenModel[[1]]) # Run Anova, double square brackets because of list properties
-  print("Stats baseline vs control vs stress:")
+  print("Stats control vs stress:")
   # print(emmeans(chosenModel[[1]], pairwise ~ condition , adjust ="fdr", type="response")) # This is the right one for physiological
   print(emmeans(chosenModel[[1]], pairwise ~ block , adjust ="fdr", type="response")) # This is the right one for self-reports
   
@@ -146,7 +149,7 @@ for(i in 1) {
   # axis(side=1, at=c(1:9), line = 3, labels=c('prerest','control1','control2','control3','midrest','stress1','stress2','stress3','postrest' ))
   # axis(side=1, at=c(1:6), line = 3, labels=c('control1','control2','control3','stress1','stress2','stress3' ))
   
-  dev.off()
+  # dev.off()
 }
 
 

@@ -17,7 +17,6 @@ library(effects)
 library(ggsignif)
 library(gridExtra) #gridarrange
 
-nAGQ = 0
 IBIlength = "small"
 ############################# CARDIO DATA ######################
 # Set and Get directories
@@ -56,7 +55,6 @@ names(data)[names(data) == "variable"] <- "IBIno"
 names(data)[names(data) == "value"] <- "IBIdelta_ms"
 
 if(IBIlength == "small"){
-  print('hi')
   # Create a plotting variable from IBI-4 for clarity in the viz
   plotdata = data[!(data$IBIno=="IBI_pos.7" | data$IBIno=="IBI_pos.6" | data$IBIno=="IBI_pos.5"), ]
   # But create a stats dataframe where the irrelevant datapoint will not be considered
@@ -75,7 +73,8 @@ data$subBlock2 = data$subBlock
 levels(data$subBlock2) = c("1","2","3","1","2","3")
 
 # Full formula
-formula <- IBIdelta_ms ~ Block * IBIno * subBlock2 + (1|pptNum)
+# formula <- IBIdelta_ms ~ Block * IBIno * subBlock2 + (1|pptNum)
+formula <- IBIdelta_ms ~ Block * IBIno + (1|pptNum)
 
 # Load document where functions are stored
 source("functions.R")
@@ -86,16 +85,17 @@ source("functions.R")
 ################## PLOTTING ##########
 # Plot Settings
 # The errorbars overlapped, so use position_dodge to move them horizontally
-pd <- position_dodge(0.1) # move them .05 to the left and right
+pd <- position_dodge(0.05) # move them .05 to the left and right
 
 ### Plot 1 - Control vs Stress
 d0.1 <- lmer(formula,data=data) # Fit the lmer
+emmeans(d0.1, pairwise ~ Block , adjust ="fdr", type = "response")
 emmeans0.1 <- emmeans(d0.1, pairwise ~ Block | IBIno, adjust ="fdr", type = "response") # Compute a variable containing all emmeans/contrasts
 emm0.1 <- summary(emmeans0.1)$emmeans
 
-Anova(d0.1)
-plot(effect("Block:IBIno:subBlock2", d0.1)) #just to check
-plot(effect("IBIno:subBlock2", d0.1)) #just to check
+anova(d0.1)
+# plot(effect("Block:IBIno:subBlock2", d0.1)) #just to check
+# plot(effect("IBIno:subBlock2", d0.1)) #just to check
 plot(effect("Block:IBIno", d0.1)) #just to check
 
 print("We see a main effect for control vs stress block, but not an interaction effect of block x IBIno. So we continue with post-hoc testing")
@@ -108,7 +108,7 @@ if(IBIlength == "small"){
 }
 ## LINEPLOT
 ggplot(emm0.1, aes(x=IBIno, y=emmean, color=Block)) +
-  geom_point(size = 1) + 
+  geom_point(size = 2) + 
   geom_line(aes(group = Block),size = 1)+
   geom_errorbar(width=.125, aes(ymin=emmean-SE, ymax=emmean+SE), position=pd)+
   geom_hline(yintercept=0, linetype="dashed")+
