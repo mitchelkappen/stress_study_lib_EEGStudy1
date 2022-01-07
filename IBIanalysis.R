@@ -17,7 +17,7 @@ library(effects)
 library(ggsignif)
 library(gridExtra) #gridarrange
 
-IBIlength = "small"
+IBIlength = "big"
 ############################# CARDIO DATA ######################
 # Set and Get directories
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path)) #Set WD to script location
@@ -48,8 +48,6 @@ data <- data[data$answered_in_time == TRUE, ] # Take out the timed-out trials
 sprintf("Length of all data is: %.0f, and remaining size after removing NA is: %.0f", nrow(IBIdata), nrow(data))
 dataBackup <- data #backup the data
 
-# data <- data[,1:(length(dataBackup)-2)] # There are NA's for IBI7 and IBI8 for some participants. Probably has to do with the 6 second stuff. Look into, erase for now
-
 data <- melt(dataBackup, id.vars = groupingVars) # Get it to long format
 names(data)[names(data) == "variable"] <- "IBIno"
 names(data)[names(data) == "value"] <- "IBIdelta_ms"
@@ -73,7 +71,6 @@ data$subBlock2 = data$subBlock
 levels(data$subBlock2) = c("1","2","3","1","2","3")
 
 # Full formula
-# formula <- IBIdelta_ms ~ Block * IBIno * subBlock2 + (1|pptNum)
 formula <- IBIdelta_ms ~ Block * IBIno + (1|pptNum)
 
 # Load document where functions are stored
@@ -107,6 +104,7 @@ if(IBIlength == "small"){
   xplotPosition = 7.1
 }
 ## LINEPLOT
+jpeg("figures/figure_IBI.jpg", width = 3000, height = 1500, res = 300) # Open jpeg file
 ggplot(emm0.1, aes(x=IBIno, y=emmean, color=Block)) +
   geom_point(size = 2) + 
   geom_line(aes(group = Block),size = 1)+
@@ -115,75 +113,20 @@ ggplot(emm0.1, aes(x=IBIno, y=emmean, color=Block)) +
   theme_bw(base_size = 8)+
   theme(legend.position="bottom")+
   theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank())+ 
-  ggtitle("Feedback: Group x IBI")+
-  labs(y = "Delta IBI (s)")+
+  labs(y = "Delta IBI (ms)")+
   annotate(geom="text", x=xplotPosition, y=-37.5, label="**", color="#000000")+ #IBI3
   annotate(geom="text", x=xplotPosition + 1, y=-34.5, label="**", color="#000000")+ #IBI4
   annotate(geom="text", x=xplotPosition + 2, y=-26, label="***", color="#000000")+ #IBI5
   annotate(geom="text", x=xplotPosition + 3, y=-17, label="***", color="#000000")+ #IBI6
-  annotate(geom="text", x=xplotPosition + 4, y=-12.5, label="**", color="#000000") #IBI7
+  annotate(geom="text", x=xplotPosition + 4, y=-12.5, label="**", color="#000000")+ #IBI7
+  theme(axis.text.x = element_text(size = 16))+ # X Axis ticks
+  theme(axis.text.y = element_text(size = 10))+ # Y axis ticks
+  theme(axis.title = element_text(size = 16))+ # Axis titles
+  theme(legend.text = element_text(size = 16))+ # Legend text
+  theme(legend.title = element_text(size = 14)) # Legend title
+dev.off() # Close jpeg file and save it
 
 # http://www.cookbook-r.com/Graphs/Plotting_means_and_error_bars_(ggplot2)/
-
-#### SUBBLOCK PLOTS #### Block:IBIno:subBlock2
-emmeans0.2 <- emmeans(d0.1, pairwise ~ Block | IBIno | subBlock2, adjust ="fdr", type = "response") # Compute a variable containing all emmeans/contrasts
-emm0.2 <- summary(emmeans0.2)$emmeans
-
-# SubBlock 1:
-block1Data = emm0.2[emm0.2$subBlock2 == 1, ]
-b1 <- ggplot(block1Data, aes(x=IBIno, y=emmean, group = 1, colour = Block)) +
-  geom_point(size = 3) + 
-  geom_line(aes(group = Block),size = 1)+
-  geom_errorbar(width=.125, aes(ymin=emmean-SE, ymax=emmean+SE), position=pd)+
-  geom_hline(yintercept=0, linetype="dashed")+
-  theme_bw(base_size = 8)+
-  theme(legend.position="bottom")+
-  theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank())+ 
-  ggtitle("Feedback: Group x IBI at subBlock 1")+
-  labs(y = "Delta IBI (s)") +
-  ylim(-53, 14) +
-  annotate(geom="text", x=xplotPosition, y=-30, label="**", color="#000000")+ #IBI3
-  annotate(geom="text", x=xplotPosition + 1, y=-23.5, label="*", color="#000000")+ #IBI4
-  annotate(geom="text", x=xplotPosition + 2, y=-15.5, label="**", color="#000000")+ #IBI5
-  annotate(geom="text", x=xplotPosition + 3, y=-9, label="**", color="#000000")+ #IBI6
-  annotate(geom="text", x=xplotPosition + 4, y=-8, label="*", color="#000000") #IBI7
-
-# SubBlock 2:
-block2Data = emm0.2[emm0.2$subBlock2 == 2, ]
-b2 <- ggplot(block2Data, aes(x=IBIno, y=emmean, group = 1, colour = Block)) +
-  geom_point(size = 3) + 
-  geom_line(aes(group = Block),size = 1)+
-  geom_errorbar(width=.125, aes(ymin=emmean-SE, ymax=emmean+SE), position=pd)+
-  geom_hline(yintercept=0, linetype="dashed")+
-  theme_bw(base_size = 8)+
-  theme(legend.position="bottom")+
-  theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank())+ 
-  ggtitle("Feedback: Group x IBI at subBlock 2")+
-  labs(y = "Delta IBI (s)") +
-  ylim(-53, 14) +
-  annotate(geom="text", x=xplotPosition + 2, y=-28, label="*", color="#000000")+ #IBI5
-  annotate(geom="text", x=xplotPosition + 3, y=-19, label="*", color="#000000")+ #IBI6
-  annotate(geom="text", x=xplotPosition + 4, y=-13, label="*", color="#000000") #IBI7
-
-# SubBlock 3:
-block3Data = emm0.2[emm0.2$subBlock2 == 3, ]
-b3 <- ggplot(block3Data, aes(x=IBIno, y=emmean, group = 1, colour = Block)) +
-  geom_point(size = 3) + 
-  geom_line(aes(group = Block),size = 1)+
-  geom_errorbar(width=.125, aes(ymin=emmean-SE, ymax=emmean+SE), position=pd)+
-  geom_hline(yintercept=0, linetype="dashed")+
-  theme_bw(base_size = 8)+
-  theme(legend.position="bottom")+
-  theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank())+ 
-  ggtitle("Feedback: Group x IBI at subBlock 3")+
-  labs(y = "Delta IBI (s)") +
-  ylim(-53, 14) +
-  annotate(geom="text", x=xplotPosition + 3, y=-23.5, label="*", color="#000000") #IBI6
-
-
-
-grid.arrange(b1, b2, b3, ncol=3, nrow =1)
-
 
 ############ Correct/incorrect ############
 # Just out of curiosity, let's see how correct/incorrect are different in general
@@ -213,7 +156,6 @@ ggplot(emm1.1, aes(x=IBIno, y=emmean, color=Correct)) +
   annotate(geom="text", x=xplotPosition-1, y=-24, label="***", color="#000000")+ #IBI2
   annotate(geom="text", x=xplotPosition, y=-35.5, label="***", color="#000000")+ #IBI3
   annotate(geom="text", x=xplotPosition + 5, y=-14.5, label="**", color="#000000") #IBI8
-
 
 #####################################
 ###### BLOCK-BY-BLOCK ANALYSIS ######

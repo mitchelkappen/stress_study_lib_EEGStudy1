@@ -76,15 +76,15 @@ data = data[data$HNRdBACF_sma3nz_amean > 0, ] # Kick out all the lines with nega
 ######## STATS AND VIZ LETS GO ########
 
 # formulas = c('F0semitoneFrom27.5Hz_sma3nz_amean ~ time', 'jitterLocal_sma3nz_amean ~ time', 'shimmerLocaldB_sma3nz_amean ~ time', 'HNRdBACF_sma3nz_amean ~ time', 'VoicedSegmentsPerSec ~ time', 'MeanVoicedSegmentLengthSec ~ time')
-formulas = c('F0semitoneFrom27.5Hz_sma3nz_amean ~ block', 'jitterLocal_sma3nz_amean ~ block', 'shimmerLocaldB_sma3nz_amean ~ block', 'HNRdBACF_sma3nz_amean ~ block', 'VoicedSegmentsPerSec ~ block', 'MeanVoicedSegmentLengthSec ~ block', 'valence ~ block', 'arousal ~ block')
+formulas = c('F0semitoneFrom27.5Hz_sma3nz_amean ~ block', 'F0BaselineCorrected ~ block', 'jitterLocal_sma3nz_amean ~ block', 'shimmerLocaldB_sma3nz_amean ~ block', 'HNRdBACF_sma3nz_amean ~ block', 'VoicedSegmentsPerSec ~ block', 'MeanVoicedSegmentLengthSec ~ block', 'valence ~ block', 'arousal ~ block')
 # formulas = c('valence ~ block', 'arousal ~ block')
 # formulas = c('valence ~ fileNum', 'arousal ~ fileNum')
 
-plotTitles = c('F0', 'Jitter', 'Shimmer', 'HNR', 'VoicedPerSec', 'MeanVoicedLength', 'Valence', 'Arousal')
+plotTitles = c('F0', 'F0 - baselinecorrected', 'Jitter', 'Shimmer', 'HNR', 'VoicedPerSec', 'MeanVoicedLength', 'Valence', 'Arousal')
 # plotTitles = c('Valence', 'Arousal')
 
 # for(i in 1:length(formulas)) {
-for(i in 6) {
+for(i in 1) {
   formula <- paste0(formulas[i], ' + (1|participantNum)')
   # Model
   d0.1 <- lmer(formula,data=data)
