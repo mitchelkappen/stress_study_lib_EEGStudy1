@@ -20,13 +20,14 @@ library(tibble)
 
 nAGQ = 1 # Set to 1 for eventual analysis
 
-BASEPATH <- "D:/Data/EEG_Study_1/uz_study/features/"
+BASEPATH <- "D:/Data/EEG_Study_1/aligned_data/features/"
 plotPrefix <- paste0(BASEPATH, "figures/")
 plotPrefix <- paste0(dirname(rstudioapi::getSourceEditorContext()$path),"/figures/")
 
 data <-
-  as.data.frame(read.csv(paste0(BASEPATH, "audioandresponsedata.csv"))) # This contains everything except for the ones that were too bad -- see Excel drive
+  as.data.frame(read.csv(paste0(BASEPATH, "dataComplete.csv"))) # This contains everything except for the ones that were too bad -- see Excel drive
 
+data <- data[1:(length(data)-8)] # Remove the physiology measures here, are treated in other script
 
 data$participantNum <- as.factor(data$participantNum)
 
@@ -88,17 +89,11 @@ for(i in 1) {
   formula <- paste0(formulas[i], ' + (1|participantNum)')
   # Model
   d0.1 <- lmer(formula,data=data)
-  # d0.2 <- glmer(formula,data=data, family = gaussian(link = "inverse"),glmerControl(optimizer= "bobyqa", optCtrl = list(maxfun = 100000)),nAGQ = nAGQ)
-  # d0.3 <- glmer(formula,data=data, family = gaussian(link = "log"),glmerControl(optimizer= "bobyqa", optCtrl = list(maxfun = 100000)),nAGQ = nAGQ)
-  
+
   d0.4 <- glmer(formula,data=data, family = Gamma(link = "identity"),glmerControl(optimizer= "bobyqa", optCtrl = list(maxfun = 100000)),nAGQ = nAGQ)
-  # d0.5 <- glmer(formula,data=data, family = Gamma(link = "inverse"),glmerControl(optimizer= "bobyqa", optCtrl = list(maxfun = 100000)),nAGQ = nAGQ)
-  # d0.6 <- glmer(formula,data=data, family = Gamma(link = "log"),glmerControl(optimizer= "bobyqa", optCtrl = list(maxfun = 100000)),nAGQ = nAGQ)
-  
+
   d0.7 <- glmer(formula,data=data, family = inverse.gaussian(link = "identity"),glmerControl(optimizer= "bobyqa", optCtrl = list(maxfun = 100000)),nAGQ = nAGQ)
-  # d0.8 <- glmer(formula,data=data, family = inverse.gaussian(link = "inverse"),glmerControl(optimizer= "bobyqa", optCtrl = list(maxfun = 100000)),nAGQ = nAGQ)
-  # d0.9 <- glmer(formula,data=data, family = inverse.gaussian(link = "log"),glmerControl(optimizer= "bobyqa", optCtrl = list(maxfun = 100000)),nAGQ = nAGQ)
-  
+
   # modelNames = c(d0.1,d0.4,d0.7)
   modelNames = c(d0.1)
   
@@ -151,92 +146,3 @@ for(i in 1) {
   
   # dev.off()
 }
-
-
-############################# CARDIO DATA ######################
-
-IBIdata <-
-  as.data.frame(read_parquet("df_tot_merged.parquet"))
-
-
-
-data <-
-  as.data.frame(read.csv(paste0(BASEPATH, "SAMscompiled.csv")))
-
-# Add columns for subblock 1-2-3
-data$time[data$fileNum == 0] = 0
-data$time[data$fileNum == 1|data$fileNum == 5] = 1
-data$time[data$fileNum == 2|data$fileNum == 6] = 2
-data$time[data$fileNum == 3|data$fileNum == 7] = 3
-data <- add_column(data[,1:ncol(data)-1], time = data$time, .after = "fileNum")
-
-# Add columns for block 0-1-2
-data$block[data$fileNum == 0] = 'baseline'
-data$block[data$fileNum == 1|data$fileNum == 2|data$fileNum == 3] = 'control'
-data$block[data$fileNum == 5|data$fileNum == 6|data$fileNum == 7] = 'stress'
-data <- add_column(data[,1:ncol(data)-1], block = data$block, .after = "time")
-
-data$fileNum <- as.factor(data$fileNum)
-data$participantNum <- as.factor(data$participantNum)
-
-# formulas = c('valence ~ time * block', 'arousal ~ time * block')
-formulas = c('valence ~ fileNum', 'arousal ~ fileNum')
-
-plotTitles = c('Valence', 'Arousal')
-
-for(i in 2) {
-  formula <- paste0(formulas[i], ' + (1|participantNum)')
-  # Model
-  d0.1 <- lmer(formula,data=data)
-  d0.2 <- glmer(formula,data=data, family = gaussian(link = "inverse"),glmerControl(optimizer= "bobyqa", optCtrl = list(maxfun = 100000)),nAGQ = nAGQ)
-  d0.3 <- glmer(formula,data=data, family = gaussian(link = "log"),glmerControl(optimizer= "bobyqa", optCtrl = list(maxfun = 100000)),nAGQ = nAGQ)
-  
-  d0.4 <- glmer(formula,data=data, family = Gamma(link = "identity"),glmerControl(optimizer= "bobyqa", optCtrl = list(maxfun = 100000)),nAGQ = nAGQ)
-  d0.5 <- glmer(formula,data=data, family = Gamma(link = "inverse"),glmerControl(optimizer= "bobyqa", optCtrl = list(maxfun = 100000)),nAGQ = nAGQ)
-  d0.6 <- glmer(formula,data=data, family = Gamma(link = "log"),glmerControl(optimizer= "bobyqa", optCtrl = list(maxfun = 100000)),nAGQ = nAGQ)
-  
-  d0.7 <- glmer(formula,data=data, family = inverse.gaussian(link = "identity"),glmerControl(optimizer= "bobyqa", optCtrl = list(maxfun = 100000)),nAGQ = nAGQ)
-  d0.8 <- glmer(formula,data=data, family = inverse.gaussian(link = "inverse"),glmerControl(optimizer= "bobyqa", optCtrl = list(maxfun = 100000)),nAGQ = nAGQ)
-  d0.9 <- glmer(formula,data=data, family = inverse.gaussian(link = "log"),glmerControl(optimizer= "bobyqa", optCtrl = list(maxfun = 100000)),nAGQ = nAGQ)
-  
-  modelNames = c(d0.1,d0.2,d0.3,d0.4,d0.5,d0.6,d0.7,d0.8,d0.9)
-  
-  # Model Selection
-  tabel <- cbind(AIC(d0.1), AIC(d0.2), AIC(d0.3), AIC(d0.4), AIC(d0.5), AIC(d0.6), AIC(d0.7), AIC(d0.8), AIC(d0.9))
-  chosenModel = modelNames[which(tabel == min(tabel))] # Get model with lowest AIC
-  
-  Anova(chosenModel[[1]]) # Run Anova, double square brackets because of list properties
-  print("Stats baseline vs control vs stress:")
-  # print(emmeans(chosenModel[[1]], pairwise ~ condition , adjust ="fdr", type="response")) # This is the right one for physiological
-  print(emmeans(chosenModel[[1]], pairwise ~ fileNum , adjust ="fdr", type="response")) # This is the right one for self-reports
-  
-  # Plotting
-  # dpi=600    #pixels per square inch
-  # jpeg(paste0(plotPrefix, "Figure", "_", plotTitles[i], ".jpeg"), width=8*dpi, height=8*dpi, res=dpi)
-  par(mfcol = c(1, 1))
-  plotAROUSAL <- pirateplot(
-    formula = formulas[i],
-    data = data,
-    theme = 1,
-    pal = "info",
-    main = plotTitles[i],
-    bean.f.o = .6, # Bean fill
-    point.o = .3,  # Points
-    inf.f.o = .7,  # Inference fill
-    inf.b.o = .8,  # Inference border
-    avg.line.o = 1,  # Average line
-    # bar.f.o = .5, # Bar
-    inf.f.col = "white",  # Inf fill col
-    inf.b.col = "black",  # Inf border col
-    avg.line.col = "black",  # avg line col
-    bar.f.col = gray(.8),  # bar filling color
-    point.pch = 21,
-    point.bg = "white",
-    point.col = "black",
-    point.cex = .7,
-    
-    xlab = "",
-  )
-  # dev.off()
-}
-
