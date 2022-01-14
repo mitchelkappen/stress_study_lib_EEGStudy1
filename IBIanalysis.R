@@ -1,3 +1,4 @@
+##### Set environment #####
 rm(list = ls()) # Clear environment
 cat("\014") # Clear console
 dev.off() # Clear plot window
@@ -15,16 +16,20 @@ library(car)
 library(ggplot2)
 library(effects)
 library(ggsignif)
-library(gridExtra) #gridarrange
+library(gridExtra)
 
 IBIlength = "big"
-############################# CARDIO DATA ######################
+
 # Set and Get directories
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path)) #Set WD to script location
+plotPrefix <- paste0(dirname(rstudioapi::getSourceEditorContext()$path),"/figures/")
+
+##### Loading data ##### 
 
 IBIdata <-
   as.data.frame(read_parquet("df_tot_merged_v2_ibi_pos_-2.parquet"))
 
+##### Data cleanup #####
 # Compute dataframe with relevant variables
 data <- data.frame(IBIdata[,c("user", "answered_correctly", "answered_in_time", "Running[Trial]",  "Trial", "Procedure[Block]", "sex", "answered_correctly")], select(IBIdata,contains("IBI_pos")))
 groupingVars <- c("pptNum", "answered_correctly", "answered_in_time", "subBlock", "Trial", "Block", "Sex", "Correct") # Give easier to use names
@@ -65,38 +70,30 @@ levels(data$IBIno) = c("-7","-6","-5","-4","-3","-2", "-1", "0", "1", "2", "3", 
 data$IBIno <- as.factor(data$IBIno)
 data$IBIno <- as.ordered(data$IBIno) 
 
-############ STATISTICS #############
-
-data$subBlock2 = data$subBlock
-levels(data$subBlock2) = c("1","2","3","1","2","3")
-
-# Full formula
-formula <- IBIdelta_ms ~ Block * IBIno + (1|pptNum)
+######## Analysis ########
+##### Statistics ####
+data$subBlock2 = data$subBlock # Data backup
+levels(data$subBlock2) = c("1","2","3","1","2","3") # Set data levels
 
 # Load document where functions are stored
 source("functions.R")
 
-# http://www.cookbook-r.com/Graphs/Plotting_means_and_error_bars_(ggplot2)/
-# Make a data summary based on grouping vars
+# Full formula
+formula <- IBIdelta_ms ~ Block * IBIno + Sex + (1|pptNum)
 
-################## PLOTTING ##########
-# Plot Settings
-# The errorbars overlapped, so use position_dodge to move them horizontally
-pd <- position_dodge(0.05) # move them .05 to the left and right
-
-### Plot 1 - Control vs Stress
 d0.1 <- lmer(formula,data=data) # Fit the lmer
-emmeans(d0.1, pairwise ~ Block , adjust ="fdr", type = "response")
+
+Anova(d0.1, type = 'III')
+plot(effect("Block:IBIno", d0.1)) #just to check
+# emmeans(d0.1, pairwise ~ Block | IBIno, adjust ="fdr", type = "response")
 emmeans0.1 <- emmeans(d0.1, pairwise ~ Block | IBIno, adjust ="fdr", type = "response") # Compute a variable containing all emmeans/contrasts
 emm0.1 <- summary(emmeans0.1)$emmeans
+emmeans0.1$contrasts
 
-anova(d0.1)
-# plot(effect("Block:IBIno:subBlock2", d0.1)) #just to check
-# plot(effect("IBIno:subBlock2", d0.1)) #just to check
-plot(effect("Block:IBIno", d0.1)) #just to check
+#### Visualisation ####
+pd <- position_dodge(0.05) # To prevent errorbars overlapping, use position_dodge to move them horizontally - move them .05 to the left and right
 
-print("We see a main effect for control vs stress block, but not an interaction effect of block x IBIno. So we continue with post-hoc testing")
-print("Also an effect for subblock is present, but not for subblock x Block.")
+print("Significant interaction effect block and IBIno ")
 
 if(IBIlength == "small"){
   xplotPosition = 4.1
@@ -104,8 +101,7 @@ if(IBIlength == "small"){
   xplotPosition = 7.1
 }
 ## LINEPLOT
-jpeg("figures/figure_IBI.jpg", width = 3000, height = 1500, res = 300) # Open jpeg file
-ggplot(emm0.1, aes(x=IBIno, y=emmean, color=Block)) +
+IBI_plot <- ggplot(emm0.1, aes(x=IBIno, y=emmean, color=Block)) +
   geom_point(size = 2) + 
   geom_line(aes(group = Block),size = 1)+
   geom_errorbar(width=.125, aes(ymin=emmean-SE, ymax=emmean+SE), position=pd)+
@@ -113,18 +109,28 @@ ggplot(emm0.1, aes(x=IBIno, y=emmean, color=Block)) +
   theme_bw(base_size = 8)+
   theme(legend.position="bottom")+
   theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank())+ 
-  labs(y = "Delta IBI (ms)")+
-  annotate(geom="text", x=xplotPosition, y=-37.5, label="**", color="#000000")+ #IBI3
-  annotate(geom="text", x=xplotPosition + 1, y=-34.5, label="**", color="#000000")+ #IBI4
-  annotate(geom="text", x=xplotPosition + 2, y=-26, label="***", color="#000000")+ #IBI5
-  annotate(geom="text", x=xplotPosition + 3, y=-17, label="***", color="#000000")+ #IBI6
-  annotate(geom="text", x=xplotPosition + 4, y=-12.5, label="**", color="#000000")+ #IBI7
+  labs(y = "Delta IBI (ms)", x = "Sequential IBI")+
+  annotate(geom="text", x=xplotPosition - 1, y=mean(emm0.1$emmean[11:12]), label="*", color="#000000")+ #IBI2
+  annotate(geom="text", x=xplotPosition, y=mean(emm0.1$emmean[13:14]), label="**", color="#000000")+ #IBI3
+  annotate(geom="text", x=xplotPosition + 1, y=mean(emm0.1$emmean[15:16]), label="**", color="#000000")+ #IBI4
+  annotate(geom="text", x=xplotPosition + 2, y=mean(emm0.1$emmean[17:18]), label="***", color="#000000")+ #IBI5
+  annotate(geom="text", x=xplotPosition + 3, y=mean(emm0.1$emmean[19:20]), label="***", color="#000000")+ #IBI6
+  annotate(geom="text", x=xplotPosition + 4, y=mean(emm0.1$emmean[21:22]), label="***", color="#000000")+ #IBI7
   theme(axis.text.x = element_text(size = 16))+ # X Axis ticks
   theme(axis.text.y = element_text(size = 10))+ # Y axis ticks
   theme(axis.title = element_text(size = 16))+ # Axis titles
   theme(legend.text = element_text(size = 16))+ # Legend text
-  theme(legend.title = element_text(size = 14)) # Legend title
-dev.off() # Close jpeg file and save it
+  theme(legend.title = element_text(size = 14))+ # Legend title
+  plot_theme_apa()+
+  theme(
+    axis.text.x=element_text(size=rel(1)),
+    axis.title.y=element_text(size=rel(1)),
+    axis.title.x = element_text(size=rel(1)),
+    legend.position = "bottom",
+    legend.title = element_blank()
+  )
+IBI_plot
+ggsave(IBI_plot, file=paste0(plotPrefix, "Figure_IBI.jpeg"), width = 3000, height = 1500, dpi = 300, units = "px")
 
 # http://www.cookbook-r.com/Graphs/Plotting_means_and_error_bars_(ggplot2)/
 
