@@ -22,6 +22,7 @@ IBIlength = "big"
 
 # Set and Get directories
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path)) #Set WD to script location
+BASEPATH <- "D:/Data/EEG_Study_1/aligned_data/features/"
 plotPrefix <- paste0(dirname(rstudioapi::getSourceEditorContext()$path),"/figures/")
 
 ##### Loading data ##### 
@@ -29,11 +30,17 @@ plotPrefix <- paste0(dirname(rstudioapi::getSourceEditorContext()$path),"/figure
 IBIdata <-
   as.data.frame(read_parquet("df_tot_merged_v2_ibi_pos_-2.parquet"))
 
+agesex <-
+  as.data.frame(read.csv(paste0(BASEPATH, "SexAge.csv")))
+agesex$user <- agesex$participantNum # Rename pptnum column for succesful merge
+agesex <- subset(agesex, select = -c(participantNum, Sex)) # Drop irrelevent columns to not cloud the dataframe
+
+IBIdata <- merge(IBIdata, agesex, by = c("user"))
 ##### Data cleanup #####
 # Compute dataframe with relevant variables
-data <- data.frame(IBIdata[,c("user", "answered_correctly", "answered_in_time", "Running[Trial]",  "Trial", "Procedure[Block]", "sex", "answered_correctly")], select(IBIdata,contains("IBI_pos")))
-groupingVars <- c("pptNum", "answered_correctly", "answered_in_time", "subBlock", "Trial", "Block", "Sex", "Correct") # Give easier to use names
-names(data)[1:8] <- groupingVars
+data <- data.frame(IBIdata[,c("user", "answered_correctly", "answered_in_time", "Running[Trial]",  "Trial", "Procedure[Block]", "sex", "Age", "answered_correctly")], select(IBIdata,contains("IBI_pos")))
+groupingVars <- c("pptNum", "answered_correctly", "answered_in_time", "subBlock", "Trial", "Block", "Sex", "Age", "Correct") # Give easier to use names
+names(data)[1:9] <- groupingVars
 
 # Factorize relevant variables and clean up data
 data$pptNum <- as.factor(data$pptNum)
@@ -79,7 +86,7 @@ levels(data$subBlock2) = c("1","2","3","1","2","3") # Set data levels
 source("functions.R")
 
 # Full formula
-formula <- IBIdelta_ms ~ Block * IBIno + Sex + (1|pptNum)
+formula <- IBIdelta_ms ~ Block * IBIno + Sex + Age + (1|pptNum)
 
 d0.1 <- lmer(formula,data=data) # Fit the lmer
 
@@ -129,151 +136,5 @@ IBI_plot <- ggplot(emm0.1, aes(x=IBIno, y=emmean, color=Block)) +
     legend.position = "bottom",
     legend.title = element_blank()
   )
-IBI_plot
+# IBI_plot
 ggsave(IBI_plot, file=paste0(plotPrefix, "Figure_IBI.jpeg"), width = 3000, height = 1500, dpi = 300, units = "px")
-
-# http://www.cookbook-r.com/Graphs/Plotting_means_and_error_bars_(ggplot2)/
-
-############ Correct/incorrect ############
-# Just out of curiosity, let's see how correct/incorrect are different in general
-
-# Formula
-formula <- IBIdelta_ms ~ Block * IBIno * subBlock2 * Correct + (1|pptNum)
-
-### Plot 1 - Control vs Stress
-d1.1 <- lmer(formula,data=data) # Fit the lmer
-emmeans1.1 <- emmeans(d1.1, pairwise ~ Correct | IBIno, adjust ="fdr", type = "response") # Compute a variable containing all emmeans/contrasts
-emm1.1 <- summary(emmeans1.1)$emmeans
-
-Anova(d1.1)
-
-## LINEPLOT
-ggplot(emm1.1, aes(x=IBIno, y=emmean, color=Correct)) +
-  geom_point(size = 1) + 
-  geom_line(aes(group = Correct),size = 1)+
-  geom_errorbar(width=.125, aes(ymin=emmean-SE, ymax=emmean+SE), position=pd)+
-  geom_hline(yintercept=0, linetype="dashed")+
-  theme_bw(base_size = 8)+
-  theme(legend.position="bottom")+
-  theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank())+ 
-  ggtitle("Feedback: Correct x IBI")+
-  labs(y = "Delta IBI (s)")+
-  annotate(geom="text", x=xplotPosition-2, y=-1, label="**", color="#000000")+ #IBI1
-  annotate(geom="text", x=xplotPosition-1, y=-24, label="***", color="#000000")+ #IBI2
-  annotate(geom="text", x=xplotPosition, y=-35.5, label="***", color="#000000")+ #IBI3
-  annotate(geom="text", x=xplotPosition + 5, y=-14.5, label="**", color="#000000") #IBI8
-
-#####################################
-###### BLOCK-BY-BLOCK ANALYSIS ######
-#####################################
-
-HRVdata <-
-  as.data.frame(read_parquet("df_hrv_feats.parquet"))
-
-# # Some data is incomplete so kick out
-# HRVdata <- HRVdata[HRVdata$user != 15, ]
-# HRVdata <- HRVdata[HRVdata$user != 64, ]
-# HRVdata <- HRVdata[HRVdata$user != 77, ]
-
-HRVblockdata <- NULL
-HRVblockdataDELTA <- NULL
-# loop over all participants
-for (i in unique(HRVdata$user)){
-  # First check if all the data is present for this participant, else we're not going to use it
-  if(sum(HRVdata$user == i ) == 9){
-    # Add resting blocks
-    rmssdrest = HRVdata$rmssd[HRVdata$user == i & HRVdata$block == "EEG_rest"]
-    hfrest = HRVdata$hfnu[HRVdata$user == i & HRVdata$block == "EEG_rest"]
-    HRVblockdata = rbind(HRVblockdata, data.frame("user" = i, "rmssd" = rmssdrest, "hf" = hfrest, "block" = "baseline"))
-    
-    ### Control Block
-    blockIndex = HRVdata$block == "Controle1" | HRVdata$block == "Controle2" | HRVdata$block == "Controle3"
-    index = HRVdata$user == i & blockIndex
-    totalN = sum(HRVdata$N[index])
-    rmssd = sum(HRVdata$N[index] * HRVdata$rmssd[index]) / totalN
-    hf = sum(HRVdata$N[index] * HRVdata$hfnu[index]) / totalN
-    
-    ### Add to dataframe
-    HRVblockdata = rbind(HRVblockdata, data.frame("user" = i, "rmssd" =  rmssd, "hf" = hf, "block" = "control"))
-    HRVblockdataDELTA = rbind(HRVblockdataDELTA, data.frame("user" = i, "rmssd" = rmssd - rmssdrest, "hf" = hf - hfrest, "block" = "control"))
-
-    rmssdrest = HRVdata$rmssd[HRVdata$user == i & HRVdata$block == "Control_recovery"]
-    hfrest = HRVdata$hfnu[HRVdata$user == i & HRVdata$block == "Control_recovery"]
-    HRVblockdata = rbind(HRVblockdata, data.frame("user" = i, "rmssd" = rmssdrest, "hf" = hfrest, "block" = "midrest"))
-    
-    # Stress Block
-    blockIndex = HRVdata$block == "Stress1" | HRVdata$block == "Stress2" | HRVdata$block == "Stress3"
-    index = HRVdata$user == i & blockIndex
-    totalN = sum(HRVdata$N[index])
-    rmssd = sum(HRVdata$N[index] * HRVdata$rmssd[index]) / totalN
-    hf = sum(HRVdata$N[index] * HRVdata$hfnu[index]) / totalN
-    
-    ### Add to dataframe
-    HRVblockdata = rbind(HRVblockdata, data.frame("user" = i, rmssd, hf, "block" = "stress"))
-    HRVblockdataDELTA = rbind(HRVblockdataDELTA, data.frame("user" = i, "rmssd" = rmssd - rmssdrest, "hf" = hf - hfrest, "block" = "stress"))
-
-  } else{
-    print(sprintf("Incomplete data for participant: %s", i))
-    sprintf("Incomplete data for participant: %s", i)
-  }
-}
-
-
-
-HRVblockdataDELTA$user <- as.factor(HRVblockdataDELTA)
-HRVblockdataDELTA$block <- as.factor(HRVblockdataDELTA$block)
-
-formulas = c('rmssd ~ block', 'hf ~ block')
-plotTitles = c('RMSSD', 'HF')
-# Model
-
-for(i in 1) {
-  
-  formula <- paste0(formulas[i], ' + (1|user)')
-  d2.1 <- lmer(formula,data=HRVblockdataDELTA)
-  
-  emmeans2.1 <- emmeans(d2.1, pairwise ~ block, adjust ="fdr", type = "response") # Compute a variable containing all emmeans/contrasts
-  emm2.1 <- summary(emmeans2.1)$emmeans
-  
-  print(Anova(d2.1))
-  
-  plot(effect("block", d2.1)) #just to check
-  
-  # VIZ
-  par(mfcol = c(1, 1))
-  plot <- pirateplot(
-    formula = formulas[i],
-    data = HRVblockdataDELTA,
-    theme = 1,
-    pal = "info",
-    main = plotTitles[i],
-    bean.f.o = .6, # Bean fill
-    point.o = .3,  # Points
-    inf.f.o = .7,  # Inference fill
-    inf.b.o = .8,  # Inference border
-    avg.line.o = 1,  # Average line
-    # bar.f.o = .5, # Bar
-    inf.f.col = "white",  # Inf fill col
-    inf.b.col = "black",  # Inf border col
-    avg.line.col = "black",  # avg line col
-    bar.f.col = gray(.8),  # bar filling color
-    point.pch = 21,
-    point.bg = "white",
-    point.col = "black",
-    point.cex = .7,
-    
-    xlab = "",
-    # ylim = c(0, 160)
-  
-  )
-
-
-}
-
-
-
-
-
-
-
-
