@@ -154,8 +154,8 @@ audio_pretty_plot <-
   function(emmean_dataframe, title){
     ggplot(emmean_dataframe, aes(x=block, y=emmean, colour = block)) +
       geom_point(size = 2) + 
-      geom_line(aes(group = 1),size = 1, colour = "black", linetype = "dashed")+
-      geom_errorbar(width=.125, aes(ymin=emmean-SE, ymax=emmean+SE), position=pd)+
+      geom_line(aes(group = 1),size = 1, colour = "black", linetype = "dotted")+
+      geom_errorbar(width=.125, aes(ymin=emmean-SE, ymax=emmean+SE))+
       labs(y = title)+
       plot_theme_apa()
   }

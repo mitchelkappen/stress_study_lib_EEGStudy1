@@ -1,3 +1,4 @@
+##### Set environment #####
 rm(list = ls()) # Clear environment
 cat("\014") # Clear console
 dev.off() # Clear plot window
@@ -24,6 +25,7 @@ library(dplyr)
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path)) #Set WD to script location
 source("functions.R") # This is a file in the same directory where you can stash your functions so you can save them there and have them together
 
+#####  General settings ##### 
 nAGQ = 1 # Set to 1 for eventual analysis
 
 BASEPATH <- "D:/Data/EEG_Study_1/aligned_data/features/"
@@ -33,6 +35,7 @@ plotPrefix <- paste0(dirname(rstudioapi::getSourceEditorContext()$path),"/figure
 data <-
   as.data.frame(read.csv(paste0(BASEPATH, "dataComplete.csv"))) # This contains everything except for the ones that were too bad -- see Excel drive
 
+##### Clean data up a bit #####
 data <- data[1:(length(data)-8)] # Remove the physiology measures here, are treated in other script
 
 data$participantNum <- as.factor(data$participantNum)
@@ -41,8 +44,6 @@ agesex <-
   as.data.frame(read.csv(paste0(BASEPATH, "SexAge.csv")))
 
 data <- merge(data, agesex, by = c("participantNum"))
-# Delete rows with zeroes
-# sum(data$F0semitoneFrom27.5Hz_sma3nz_amean == 0)
 
 # Add columns for subblock 1-2-3
 data$time[data$fileNum == 0] = 0
@@ -89,180 +90,194 @@ data = data[data$HNRdBACF_sma3nz_amean > 0, ] # Kick out all the lines with nega
 ######## Analysis ########
 ####### Speech features #######
 ###### Speech features: F0 ######
-formula <- 'F0semitoneFrom27.5Hz_sma3nz_amean ~ block +(1|participantNum)' # FirstMenstrual had zero effect so was removed from the model | Order showed no effect and was removed from model
-
-dataModel = data
-
+formula <- 'F0semitoneFrom27.5Hz_sma3nz_amean ~ block + Sex + Age + (1|participantNum)' # Declare formula
+dataModel = data # Ensure correct data is taken
 rm(d0.1, d0.2, d0.3) # Just to be sure you're not comparing former models for this comparison
 
 d0.1 <- lmer(formula,data=dataModel)
 d0.2 <- glmer(formula,data=data, family = Gamma(link = "identity"),glmerControl(optimizer= "bobyqa", optCtrl = list(maxfun = 100000)),nAGQ = nAGQ)
 d0.3 <- glmer(formula,data=data, family = inverse.gaussian(link = "identity"),glmerControl(optimizer= "bobyqa", optCtrl = list(maxfun = 100000)),nAGQ = nAGQ)
 
-modelNames = c(d0.1,d0.2,d0.3)
-
 # Model Selection
+modelNames = c(d0.1,d0.2,d0.3)
 tabel <- cbind(AIC(d0.1), AIC(d0.2), AIC(d0.3))
-
 chosenModel = modelNames[which(tabel == min(tabel))] # Get model with lowest AIC
 
 Anova(chosenModel[[1]], type = 'III')
-plot(effect("block", chosenModel[[1]], se = TRUE))
 
 emmeans0.1 <- emmeans(chosenModel[[1]], pairwise ~ block, adjust ="fdr", type = "response") #we don't adjust because we do this later
 emm0.1 <- summary(emmeans0.1)$emmeans
 emmeans0.1$contrasts
 
-max_y<-max(data$F0semitoneFrom27.5Hz_sma3nz_amean) # max PSS is 33
-emm0.2 <- data.frame('block'=emm0.1$block, 'F0'= emm0.1$emmean) #dataframe with all the emmeans
-
 F0_plot <- audio_pretty_plot(emm0.1, "F0")
-F0_plot + annotate('text', x=1.5, y=mean(emm0.1$emmean) + mean(emm0.1$emmean)/750, label='**', size=7)
+F0_plot <- F0_plot + annotate('text', x=1.5, y=mean(emm0.1$emmean) + (emm0.1$emmean[2] - emm0.1$emmean[1]) / 2, label='**', size=7)
+ggsave(F0_plot, file=paste0(plotPrefix, "Figure_F0.jpeg"), width = 3000, height = 1500, dpi = 300, units = "px")
 
-ggplot()+
-  ggtitle('F0 ~ block')+ #title 
-  geom_flat_violin(data= data, aes(x= block, y= F0semitoneFrom27.5Hz_sma3nz_amean, fill=block),position = position_nudge(x =.3, y = 0), adjust = 1.5, alpha = .5, colour = NA)+ # flat violin distribution, .3 points to the right. alpha=.5 so see-through
-  geom_boxplot(data= data, aes(x=block, y=F0semitoneFrom27.5Hz_sma3nz_amean, fill=block), outlier.shape=NA, alpha=.5, width=.3, colour='black')+ #boxplot, see through, no outline, 
-  geom_point(data= emm0.2, aes(x = block, y = F0, fill=block), position= position_dodge(0.3), size=4) #points representing the emmeans
+###### Speech features: Jitter ######
+formula <- 'jitterLocal_sma3nz_amean ~ block + Sex + Age + (1|participantNum)' # Declare formula
+dataModel = data # Ensure correct data is taken
+rm(d0.1, d0.2, d0.3) # Just to be sure you're not comparing former models for this comparison
 
-ggplot(data, aes(x = block, y = F0semitoneFrom27.5Hz_sma3nz_amean)) +
-  geom_flat_violin(aes(fill=block),position = position_nudge(x =.2, y = 0), alpha=.5, adjust = 1.5, colour = NA)+
-  # geom_point(aes(colour=PMS, fill=PMS),position=position_jitter(width=.15), alpha=.5, size=.25)+
-  geom_boxplot(aes(x = block, y = F0semitoneFrom27.5Hz_sma3nz_amean, fill = block),outlier.shape= NA, alpha = .45, width = .1, colour = "black")+
-  geom_point(data= emm0.2, aes(x = block, y = F0, fill=block),outlier.shape= NA, width = .5, size=4)+
-  ggtitle('DASS_Anxiety~PMS')+
-  geom_segment(aes(x = 1, y=max_y, xend= 2, yend=max_y), size= 1)+
-  annotate('text', x=1.5, y=max_y+0.3, label='***', size=7)+
-  geom_segment(aes(x = 2, y=max_y+1, xend= 3, yend=max_y+1), size= 1)+
-  annotate('text', x=2.5, y=max_y+ 1.3, label='**', size=7)+
-  geom_segment(aes(x = 1, y=max_y+2, xend= 3, yend=max_y+2), size= 1)+
-  annotate('text', x=2, y=max_y+2.3, label='***', size=7)+
-  scale_fill_manual(values = c("blue", 'red', 'purple'),
-                    name='',labels=c('noPMS \n n=128 ', 'PMS \n n=74', 'PMDD \n n=35'))+
-  guides(fill = guide_legend(reverse=TRUE))+
-  theme(
-    legend.key.size=unit(1.3, 'cm'),
-    legend.text=element_text(size=13),
-    plot.title = element_text(size=rel(2)),
-    panel.border = element_blank(),
-    panel.background = element_blank(),
-    axis.line = element_line(colour = "black"),
-    panel.grid.major.y = element_line( size=.1, color="#dedede" ),
-    axis.text.x=element_text(size=rel(1.5)),
-    axis.title.y=element_text(size=rel(1.4)),
-    axis.title.x = element_blank()) 
+d0.1 <- lmer(formula,data=dataModel)
+d0.2 <- glmer(formula,data=data, family = Gamma(link = "identity"),glmerControl(optimizer= "bobyqa", optCtrl = list(maxfun = 100000)),nAGQ = nAGQ)
+d0.3 <- glmer(formula,data=data, family = inverse.gaussian(link = "identity"),glmerControl(optimizer= "bobyqa", optCtrl = list(maxfun = 100000)),nAGQ = nAGQ)
 
-par(mfcol = c(1, 1))
-plotAROUSAL <- pirateplot(
-  formula = 'F0semitoneFrom27.5Hz_sma3nz_amean ~ block',
-  data = data,
-  theme = 1,
-  pal = "info",
-  main = 'pirate',
-  bean.f.o = .6, # Bean fill
-  point.o = .3,  # Points
-  inf.f.o = .7,  # Inference fill
-  inf.b.o = .8,  # Inference border
-  avg.line.o = 1,  # Average line
-  # bar.f.o = .5, # Bar
-  inf.f.col = "white",  # Inf fill col
-  inf.b.col = "black",  # Inf border col
-  avg.line.col = "black",  # avg line col
-  bar.f.col = gray(.8),  # bar filling color
-  point.pch = 21,
-  point.bg = "white",
-  point.col = "black",
-  point.cex = .7,
-  
-  xlab = "",
-)
+# Model Selection
+modelNames = c(d0.1) # Other models did not converge
+tabel <- cbind(AIC(d0.1))
+chosenModel = modelNames[which(tabel == min(tabel))] # Get model with lowest AIC
 
-library(sjPlot)
-plot_model(
-  chosenModel[[1]], 
-  colors = "Accent", 
-  show.values = TRUE,
-  value.offset = .4,
-  value.size = 4,
-  dot.size = 3,
-  line.size = 1.5,
-  vline.color = "blue",
-  width = 1.5
-)
+Anova(chosenModel[[1]], type = 'III')
 
-plot_model(chosenModel[[1]], show.values = TRUE, value.offset = .3)
-################
-# formulas = c('F0semitoneFrom27.5Hz_sma3nz_amean ~ time', 'jitterLocal_sma3nz_amean ~ time', 'shimmerLocaldB_sma3nz_amean ~ time', 'HNRdBACF_sma3nz_amean ~ time', 'VoicedSegmentsPerSec ~ time', 'MeanVoicedSegmentLengthSec ~ time')
-formulas = c('F0semitoneFrom27.5Hz_sma3nz_amean ~ block', 'F0BaselineCorrected ~ block', 'jitterLocal_sma3nz_amean ~ block', 'shimmerLocaldB_sma3nz_amean ~ block', 'HNRdBACF_sma3nz_amean ~ block', 'VoicedSegmentsPerSec ~ block', 'MeanVoicedSegmentLengthSec ~ block', 'valence ~ block', 'arousal ~ block')
-# formulas = c('valence ~ block', 'arousal ~ block')
-# formulas = c('valence ~ fileNum', 'arousal ~ fileNum')
+emmeans0.1 <- emmeans(chosenModel[[1]], pairwise ~ block, adjust ="fdr", type = "response") #we don't adjust because we do this later
+emm0.1 <- summary(emmeans0.1)$emmeans
+emmeans0.1$contrasts
 
-plotTitles = c('F0', 'F0 - baselinecorrected', 'Jitter', 'Shimmer', 'HNR', 'VoicedPerSec', 'MeanVoicedLength', 'Valence', 'Arousal')
-# plotTitles = c('Valence', 'Arousal')
+Jitter_plot <- audio_pretty_plot(emm0.1, "Jitter")
+Jitter_plot <- Jitter_plot + annotate('text', x=1.5, y=mean(emm0.1$emmean) + (emm0.1$emmean[2] - emm0.1$emmean[1]) / 2, label='', size=7)
+ggsave(Jitter_plot, file=paste0(plotPrefix, "Figure_Jitter.jpeg"), width = 3000, height = 1500, dpi = 300, units = "px")
 
-# for(i in 1:length(formulas)) {
-for(i in 1) {
-  formula <- paste0(formulas[i], ' + (1|Sex) + (1|participantNum)')
-  formula <- paste0(formulas[i], ' + (1|participantNum)')
-  formula <- paste0(formulas[i], ' + Sex + Age + (1|participantNum)')
-  
-  # Model
-  d0.1 <- lmer(formula,data=data)
+###### Speech features: Shimmer ######
+formula <- 'shimmerLocaldB_sma3nz_amean ~ block + Sex + Age + (1|participantNum)' # Declare formula
+dataModel = data # Ensure correct data is taken
+rm(d0.1, d0.2, d0.3) # Just to be sure you're not comparing former models for this comparison
 
-  d0.4 <- glmer(formula,data=data, family = Gamma(link = "identity"),glmerControl(optimizer= "bobyqa", optCtrl = list(maxfun = 100000)),nAGQ = nAGQ)
+d0.1 <- lmer(formula,data=dataModel)
+d0.2 <- glmer(formula,data=data, family = Gamma(link = "identity"),glmerControl(optimizer= "bobyqa", optCtrl = list(maxfun = 100000)),nAGQ = nAGQ)
+d0.3 <- glmer(formula,data=data, family = inverse.gaussian(link = "identity"),glmerControl(optimizer= "bobyqa", optCtrl = list(maxfun = 100000)),nAGQ = nAGQ)
 
-  d0.7 <- glmer(formula,data=data, family = inverse.gaussian(link = "identity"),glmerControl(optimizer= "bobyqa", optCtrl = list(maxfun = 100000)),nAGQ = nAGQ)
+# Model Selection
+modelNames = c(d0.1) # Other models did not converge
+tabel <- cbind(AIC(d0.1))
+chosenModel = modelNames[which(tabel == min(tabel))] # Get model with lowest AIC
 
-  # modelNames = c(d0.1,d0.4,d0.7)
-  modelNames = c(d0.1)
-  
-  # Model Selection
-  # tabel <- cbind(AIC(d0.1), AIC(d0.4), AIC(d0.7))
-  tabel <- cbind(AIC(d0.1))
-  
-  chosenModel = modelNames[which(tabel == min(tabel))] # Get model with lowest AIC
-  
-  print(Anova(chosenModel[[1]], type = 'III')) # Run Anova, double square brackets because of list properties
-  plot(effect("block", chosenModel[[1]])) #just to check
-  print("Stats control vs stress:")
-  # print(emmeans(chosenModel[[1]], pairwise ~ condition , adjust ="fdr", type="response")) # This is the right one for physiological
-  print(emmeans(chosenModel[[1]], pairwise ~ block , adjust ="fdr", type="response")) # This is the right one for self-reports
-  
-  # Plotting
-  # dpi=600    #pixels per square inch
-  # jpeg(paste0(plotPrefix, "Figure", "_", plotTitles[i], ".jpeg"), width=8*dpi, height=8*dpi, res=dpi)
-  par(mfcol = c(1, 1))
-  plotAROUSAL <- pirateplot(
-    formula = formulas[i],
-    data = data,
-    theme = 1,
-    pal = "info",
-    main = plotTitles[i],
-    bean.f.o = .6, # Bean fill
-    point.o = .3,  # Points
-    inf.f.o = .7,  # Inference fill
-    inf.b.o = .8,  # Inference border
-    avg.line.o = 1,  # Average line
-    # bar.f.o = .5, # Bar
-    inf.f.col = "white",  # Inf fill col
-    inf.b.col = "black",  # Inf border col
-    avg.line.col = "black",  # avg line col
-    bar.f.col = gray(.8),  # bar filling color
-    point.pch = 21,
-    point.bg = "white",
-    point.col = "black",
-    point.cex = .7,
-    
-    xlab = "",
-  )
-  # abline(lm(formulas[i], data=data), lwd=4, lty=2, col = "red")
-  
-  # Secondary points and axis:
-  # mtext("fileNum",1,line=1,at=0.2,col="red")
-  
-  # mtext("Experiment phase",1,line=3,at=0.2,col="blue")
-  # axis(side=1, at=c(1:9), line = 3, labels=c('prerest','control1','control2','control3','midrest','stress1','stress2','stress3','postrest' ))
-  # axis(side=1, at=c(1:6), line = 3, labels=c('control1','control2','control3','stress1','stress2','stress3' ))
-  
-  # dev.off()
-}
+Anova(chosenModel[[1]], type = 'III')
+
+emmeans0.1 <- emmeans(chosenModel[[1]], pairwise ~ block, adjust ="fdr", type = "response") #we don't adjust because we do this later
+emm0.1 <- summary(emmeans0.1)$emmeans
+emmeans0.1$contrasts
+
+Shimmer_plot <- audio_pretty_plot(emm0.1, "Shimmer")
+Shimmer_plot <- Shimmer_plot + annotate('text', x=1.5, y=mean(emm0.1$emmean) + (emm0.1$emmean[1] - emm0.1$emmean[2]) / 2, label='**', size=7)
+ggsave(Shimmer_plot, file=paste0(plotPrefix, "Figure_Shimmer.jpeg"), width = 3000, height = 1500, dpi = 300, units = "px")
+
+###### Speech features: HNR ######
+formula <- 'HNRdBACF_sma3nz_amean ~ block + Sex + Age + (1|participantNum)' # Declare formula
+dataModel = data # Ensure correct data is taken
+rm(d0.1, d0.2, d0.3) # Just to be sure you're not comparing former models for this comparison
+
+d0.1 <- lmer(formula,data=dataModel)
+d0.2 <- glmer(formula,data=data, family = Gamma(link = "identity"),glmerControl(optimizer= "bobyqa", optCtrl = list(maxfun = 100000)),nAGQ = nAGQ)
+d0.3 <- glmer(formula,data=data, family = inverse.gaussian(link = "identity"),glmerControl(optimizer= "bobyqa", optCtrl = list(maxfun = 100000)),nAGQ = nAGQ)
+
+# Model Selection
+modelNames = c(d0.1,d0.2,d0.3)
+tabel <- cbind(AIC(d0.1), AIC(d0.2), AIC(d0.3))
+chosenModel = modelNames[which(tabel == min(tabel))] # Get model with lowest AIC
+
+Anova(chosenModel[[1]], type = 'III')
+
+emmeans0.1 <- emmeans(chosenModel[[1]], pairwise ~ block, adjust ="fdr", type = "response") #we don't adjust because we do this later
+emm0.1 <- summary(emmeans0.1)$emmeans
+emmeans0.1$contrasts
+
+HNR_plot <- audio_pretty_plot(emm0.1, "HNR")
+HNR_plot <- HNR_plot + annotate('text', x=1.5, y=mean(emm0.1$emmean) + (emm0.1$emmean[2] - emm0.1$emmean[1]) / 2, label='**', size=7)
+ggsave(HNR_plot, file=paste0(plotPrefix, "Figure_HNR.jpeg"), width = 3000, height = 1500, dpi = 300, units = "px")
+
+###### Speech features: Voiced per sec ######
+formula <- 'VoicedSegmentsPerSec ~ block + Sex + Age + (1|participantNum)' # Declare formula
+dataModel = data # Ensure correct data is taken
+rm(d0.1, d0.2, d0.3) # Just to be sure you're not comparing former models for this comparison
+
+d0.1 <- lmer(formula,data=dataModel)
+d0.2 <- glmer(formula,data=data, family = Gamma(link = "identity"),glmerControl(optimizer= "bobyqa", optCtrl = list(maxfun = 100000)),nAGQ = nAGQ)
+d0.3 <- glmer(formula,data=data, family = inverse.gaussian(link = "identity"),glmerControl(optimizer= "bobyqa", optCtrl = list(maxfun = 100000)),nAGQ = nAGQ)
+
+# Model Selection
+modelNames = c(d0.1,d0.2,d0.3)
+tabel <- cbind(AIC(d0.1), AIC(d0.2), AIC(d0.3))
+chosenModel = modelNames[which(tabel == min(tabel))] # Get model with lowest AIC
+
+Anova(chosenModel[[1]], type = 'III')
+
+emmeans0.1 <- emmeans(chosenModel[[1]], pairwise ~ block, adjust ="fdr", type = "response") #we don't adjust because we do this later
+emm0.1 <- summary(emmeans0.1)$emmeans
+emmeans0.1$contrasts
+
+VoicedSeg_plot <- audio_pretty_plot(emm0.1, "Voiced segments per sec")
+VoicedSeg_plot <- VoicedSeg_plot + annotate('text', x=1.5, y=mean(emm0.1$emmean) + (emm0.1$emmean[2] - emm0.1$emmean[1]) / 2, label='', size=7)
+ggsave(VoicedSeg_plot, file=paste0(plotPrefix, "Figure_VoicedPerSec.jpeg"), width = 3000, height = 1500, dpi = 300, units = "px")
+
+###### Speech features: Mean voiced segment length ######
+formula <- 'MeanVoicedSegmentLengthSec ~ block + Sex + Age + (1|participantNum)' # Declare formula
+dataModel = data # Ensure correct data is taken
+rm(d0.1, d0.2, d0.3) # Just to be sure you're not comparing former models for this comparison
+
+d0.1 <- lmer(formula,data=dataModel)
+d0.2 <- glmer(formula,data=data, family = Gamma(link = "identity"),glmerControl(optimizer= "bobyqa", optCtrl = list(maxfun = 100000)),nAGQ = nAGQ)
+d0.3 <- glmer(formula,data=data, family = inverse.gaussian(link = "identity"),glmerControl(optimizer= "bobyqa", optCtrl = list(maxfun = 100000)),nAGQ = nAGQ)
+
+# Model Selection
+modelNames = c(d0.1) # Other models did not converge
+tabel <- cbind(AIC(d0.1))
+chosenModel = modelNames[which(tabel == min(tabel))] # Get model with lowest AIC
+
+Anova(chosenModel[[1]], type = 'III')
+
+emmeans0.1 <- emmeans(chosenModel[[1]], pairwise ~ block, adjust ="fdr", type = "response") #we don't adjust because we do this later
+emm0.1 <- summary(emmeans0.1)$emmeans
+emmeans0.1$contrasts
+
+SegLength_plot <- audio_pretty_plot(emm0.1, "Mean voiced segment length")
+SegLength_plot <- SegLength_plot + annotate('text', x=1.5, y=mean(emm0.1$emmean) + (emm0.1$emmean[2] - emm0.1$emmean[1]) / 2, label='', size=7)
+ggsave(SegLength_plot, file=paste0(plotPrefix, "Figure_MeanVoicedLength.jpeg"), width = 3000, height = 1500, dpi = 300, units = "px")
+
+####### Self-reports #######
+###### Self-reports: Valence ######
+formula <- 'valence ~ block + Sex + Age + (1|participantNum)' # Declare formula
+dataModel = data # Ensure correct data is taken
+rm(d0.1, d0.2, d0.3) # Just to be sure you're not comparing former models for this comparison
+
+d0.1 <- lmer(formula,data=dataModel)
+d0.2 <- glmer(formula,data=data, family = Gamma(link = "identity"),glmerControl(optimizer= "bobyqa", optCtrl = list(maxfun = 100000)),nAGQ = nAGQ)
+d0.3 <- glmer(formula,data=data, family = inverse.gaussian(link = "identity"),glmerControl(optimizer= "bobyqa", optCtrl = list(maxfun = 100000)),nAGQ = nAGQ)
+
+# Model Selection
+modelNames = c(d0.1,d0.2,d0.3)
+tabel <- cbind(AIC(d0.1), AIC(d0.2), AIC(d0.3))
+chosenModel = modelNames[which(tabel == min(tabel))] # Get model with lowest AIC
+
+Anova(chosenModel[[1]], type = 'III')
+
+emmeans0.1 <- emmeans(chosenModel[[1]], pairwise ~ block, adjust ="fdr", type = "response") #we don't adjust because we do this later
+emm0.1 <- summary(emmeans0.1)$emmeans
+emmeans0.1$contrasts
+
+valence_plot <- audio_pretty_plot(emm0.1, "Valence")
+valence_plot <- valence_plot + annotate('text', x=1.5, y=mean(emm0.1$emmean) + (emm0.1$emmean[1] - emm0.1$emmean[2]) / 4, label='***', size=7)
+ggsave(valence_plot, file=paste0(plotPrefix, "Figure_Valence.jpeg"), width = 3000, height = 1500, dpi = 300, units = "px")
+
+###### Self-reports: Arousal ######
+formula <- 'arousal ~ block + Sex + Age + (1|participantNum)' # Declare formula
+dataModel = data # Ensure correct data is taken
+rm(d0.1, d0.2, d0.3) # Just to be sure you're not comparing former models for this comparison
+
+d0.1 <- lmer(formula,data=dataModel)
+d0.2 <- glmer(formula,data=data, family = Gamma(link = "identity"),glmerControl(optimizer= "bobyqa", optCtrl = list(maxfun = 100000)),nAGQ = nAGQ)
+d0.3 <- glmer(formula,data=data, family = inverse.gaussian(link = "identity"),glmerControl(optimizer= "bobyqa", optCtrl = list(maxfun = 100000)),nAGQ = nAGQ)
+
+# Model Selection
+modelNames = c(d0.1,d0.2,d0.3)
+tabel <- cbind(AIC(d0.1), AIC(d0.2), AIC(d0.3))
+chosenModel = modelNames[which(tabel == min(tabel))] # Get model with lowest AIC
+
+Anova(chosenModel[[1]], type = 'III')
+
+emmeans0.1 <- emmeans(chosenModel[[1]], pairwise ~ block, adjust ="fdr", type = "response") #we don't adjust because we do this later
+emm0.1 <- summary(emmeans0.1)$emmeans
+emmeans0.1$contrasts
+
+arousal_plot <- audio_pretty_plot(emm0.1, "Arousal")
+arousal_plot <- arousal_plot + annotate('text', x=1.5, y=mean(emm0.1$emmean) + (emm0.1$emmean[1] - emm0.1$emmean[2]) / 2, label='*', size=7)
+ggsave(arousal_plot, file=paste0(plotPrefix, "Figure_Arousal.jpeg"), width = 3000, height = 1500, dpi = 300, units = "px")
