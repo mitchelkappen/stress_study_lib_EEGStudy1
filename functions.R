@@ -156,7 +156,7 @@ audio_pretty_plot <-
       geom_point(size = 2) + 
       geom_line(aes(group = 1),size = 1, colour = "black", linetype = "dotted")+
       geom_errorbar(width=.125, aes(ymin=emmean-SE, ymax=emmean+SE))+
-      labs(y = title)+
+      labs(y = title, x = "Feedback block")+
       plot_theme_apa()
   }
 # One general theme to clean up code
@@ -173,5 +173,5 @@ plot_theme_apa <-
       panel.grid.major.y = element_line( size=.1, color="#dedede" ),
       axis.text.x=element_text(size=rel(2)),
       axis.title.y=element_text(size=rel(1.5)),
-      axis.title.x = element_blank())
+      axis.title.x = element_text(size=rel(1.5)))
   }

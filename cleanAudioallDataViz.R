@@ -54,8 +54,8 @@ data <- add_column(data[,1:ncol(data)-1], time = data$time, .after = "fileNum")
 
 # Add columns for block 0-1-2
 data$block[data$fileNum == 0] = 'baseline'
-data$block[data$fileNum == 1|data$fileNum == 2|data$fileNum == 3] = 'control'
-data$block[data$fileNum == 5|data$fileNum == 6|data$fileNum == 7] = 'stress'
+data$block[data$fileNum == 1|data$fileNum == 2|data$fileNum == 3] = 'Neutral'
+data$block[data$fileNum == 5|data$fileNum == 6|data$fileNum == 7] = 'Negative'
 data <- add_column(data[,1:ncol(data)-1], block = data$block, .after = "time")
 
 data$time <- as.factor(data$time)
@@ -84,7 +84,7 @@ for(i in unique(data$participantNum)){
 
 # Get relevant data
 dataBackup = data # Backup data so we can go back to this whenever
-data = data[data$block ==  'control' | data$block == 'stress',] # Get only block 1 and 2 data
+data = data[data$block ==  'Neutral' | data$block == 'Negative',] # Get only block 1 and 2 data
 
 data = data[data$HNRdBACF_sma3nz_amean > 0, ] # Kick out all the lines with negative HNR, that means the signal is too noisy to trust
 ######## Analysis ########
@@ -110,7 +110,7 @@ emm0.1 <- summary(emmeans0.1)$emmeans
 emmeans0.1$contrasts
 
 F0_plot <- audio_pretty_plot(emm0.1, "F0")
-F0_plot <- F0_plot + annotate('text', x=1.5, y=mean(emm0.1$emmean) + (emm0.1$emmean[2] - emm0.1$emmean[1]) / 2, label='**', size=7)
+F0_plot <- F0_plot + annotate('text', x=1.5, y=mean(emm0.1$emmean) + (max(emm0.1$emmean) - min(emm0.1$emmean)) / 2, label='**', size=7)
 ggsave(F0_plot, file=paste0(plotPrefix, "Figure_F0.jpeg"), width = 3000, height = 1500, dpi = 300, units = "px")
 
 ###### Speech features: Jitter ######
@@ -134,7 +134,7 @@ emm0.1 <- summary(emmeans0.1)$emmeans
 emmeans0.1$contrasts
 
 Jitter_plot <- audio_pretty_plot(emm0.1, "Jitter")
-Jitter_plot <- Jitter_plot + annotate('text', x=1.5, y=mean(emm0.1$emmean) + (emm0.1$emmean[2] - emm0.1$emmean[1]) / 2, label='', size=7)
+Jitter_plot <- Jitter_plot + annotate('text', x=1.5, y=mean(emm0.1$emmean) + (max(emm0.1$emmean) - min(emm0.1$emmean)) / 2, label='', size=7)
 ggsave(Jitter_plot, file=paste0(plotPrefix, "Figure_Jitter.jpeg"), width = 3000, height = 1500, dpi = 300, units = "px")
 
 ###### Speech features: Shimmer ######
@@ -158,7 +158,7 @@ emm0.1 <- summary(emmeans0.1)$emmeans
 emmeans0.1$contrasts
 
 Shimmer_plot <- audio_pretty_plot(emm0.1, "Shimmer")
-Shimmer_plot <- Shimmer_plot + annotate('text', x=1.5, y=mean(emm0.1$emmean) + (emm0.1$emmean[1] - emm0.1$emmean[2]) / 2, label='**', size=7)
+Shimmer_plot <- Shimmer_plot + annotate('text', x=1.5, y=mean(emm0.1$emmean) + (max(emm0.1$emmean) - min(emm0.1$emmean)) / 2, label='**', size=7)
 ggsave(Shimmer_plot, file=paste0(plotPrefix, "Figure_Shimmer.jpeg"), width = 3000, height = 1500, dpi = 300, units = "px")
 
 ###### Speech features: HNR ######
@@ -182,7 +182,7 @@ emm0.1 <- summary(emmeans0.1)$emmeans
 emmeans0.1$contrasts
 
 HNR_plot <- audio_pretty_plot(emm0.1, "HNR")
-HNR_plot <- HNR_plot + annotate('text', x=1.5, y=mean(emm0.1$emmean) + (emm0.1$emmean[2] - emm0.1$emmean[1]) / 2, label='**', size=7)
+HNR_plot <- HNR_plot + annotate('text', x=1.5, y=mean(emm0.1$emmean) + (max(emm0.1$emmean) - min(emm0.1$emmean)) / 2, label='**', size=7)
 ggsave(HNR_plot, file=paste0(plotPrefix, "Figure_HNR.jpeg"), width = 3000, height = 1500, dpi = 300, units = "px")
 
 ###### Speech features: Voiced per sec ######
@@ -206,7 +206,7 @@ emm0.1 <- summary(emmeans0.1)$emmeans
 emmeans0.1$contrasts
 
 VoicedSeg_plot <- audio_pretty_plot(emm0.1, "Voiced segments per sec")
-VoicedSeg_plot <- VoicedSeg_plot + annotate('text', x=1.5, y=mean(emm0.1$emmean) + (emm0.1$emmean[2] - emm0.1$emmean[1]) / 2, label='', size=7)
+VoicedSeg_plot <- VoicedSeg_plot + annotate('text', x=1.5, y=mean(emm0.1$emmean) + (max(emm0.1$emmean) - min(emm0.1$emmean)) / 2, label='', size=7)
 ggsave(VoicedSeg_plot, file=paste0(plotPrefix, "Figure_VoicedPerSec.jpeg"), width = 3000, height = 1500, dpi = 300, units = "px")
 
 ###### Speech features: Mean voiced segment length ######
@@ -230,7 +230,7 @@ emm0.1 <- summary(emmeans0.1)$emmeans
 emmeans0.1$contrasts
 
 SegLength_plot <- audio_pretty_plot(emm0.1, "Mean voiced segment length")
-SegLength_plot <- SegLength_plot + annotate('text', x=1.5, y=mean(emm0.1$emmean) + (emm0.1$emmean[2] - emm0.1$emmean[1]) / 2, label='', size=7)
+SegLength_plot <- SegLength_plot + annotate('text', x=1.5, y=mean(emm0.1$emmean) + (max(emm0.1$emmean) - min(emm0.1$emmean)) / 2, label='', size=7)
 ggsave(SegLength_plot, file=paste0(plotPrefix, "Figure_MeanVoicedLength.jpeg"), width = 3000, height = 1500, dpi = 300, units = "px")
 
 ####### Self-reports #######
@@ -255,7 +255,7 @@ emm0.1 <- summary(emmeans0.1)$emmeans
 emmeans0.1$contrasts
 
 valence_plot <- audio_pretty_plot(emm0.1, "Valence")
-valence_plot <- valence_plot + annotate('text', x=1.5, y=mean(emm0.1$emmean) + (emm0.1$emmean[1] - emm0.1$emmean[2]) / 4, label='***', size=7)
+valence_plot <- valence_plot + annotate('text', x=1.5, y=mean(emm0.1$emmean) + (max(emm0.1$emmean) - min(emm0.1$emmean)) / 4, label='***', size=7)
 ggsave(valence_plot, file=paste0(plotPrefix, "Figure_Valence.jpeg"), width = 3000, height = 1500, dpi = 300, units = "px")
 
 ###### Self-reports: Arousal ######
@@ -279,5 +279,5 @@ emm0.1 <- summary(emmeans0.1)$emmeans
 emmeans0.1$contrasts
 
 arousal_plot <- audio_pretty_plot(emm0.1, "Arousal")
-arousal_plot <- arousal_plot + annotate('text', x=1.5, y=mean(emm0.1$emmean) + (emm0.1$emmean[1] - emm0.1$emmean[2]) / 2, label='*', size=7)
+arousal_plot <- arousal_plot + annotate('text', x=1.5, y=mean(emm0.1$emmean) + (max(emm0.1$emmean) - min(emm0.1$emmean)) / 2, label='*', size=7)
 ggsave(arousal_plot, file=paste0(plotPrefix, "Figure_Arousal.jpeg"), width = 3000, height = 1500, dpi = 300, units = "px")
