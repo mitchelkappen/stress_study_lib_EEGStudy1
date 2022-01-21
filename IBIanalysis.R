@@ -17,6 +17,7 @@ library(ggplot2)
 library(effects)
 library(ggsignif)
 library(gridExtra)
+library(viridis)
 
 IBIlength = "big"
 
@@ -48,7 +49,9 @@ data$answered_correctly <- as.factor(data$answered_correctly)
 data$answered_in_time <- as.factor(data$answered_in_time)
 data$subBlock <- as.factor(data$subBlock)
 data$Trial <- as.factor(data$Trial)
-data$Block <- as.factor(data$Block)
+data$Block[data$Block == "Controle"] = "Neutral"
+data$Block[data$Block == "Stress"] = "Negative"
+data$Block <- factor(data$Block, levels = c("Neutral", "Negative"))
 data$Sex <- as.factor(data$Sex)
 data$Correct <- as.factor(data$Correct)
 data$answered_in_time <- as.factor(data$answered_in_time)
@@ -81,12 +84,11 @@ data$IBIno <- as.ordered(data$IBIno)
 ##### Statistics ####
 data$subBlock2 = data$subBlock # Data backup
 levels(data$subBlock2) = c("1","2","3","1","2","3") # Set data levels
-
 # Load document where functions are stored
 source("functions.R")
 
 # Full formula
-formula <- IBIdelta_ms ~ Block * IBIno + Sex + Age + (1|pptNum)
+formula <- IBIdelta_ms ~ Block * IBIno + (1|pptNum)
 
 d0.1 <- lmer(formula,data=data) # Fit the lmer
 
@@ -107,12 +109,16 @@ if(IBIlength == "small"){
 } else if(IBIlength == "big"){
   xplotPosition = 7.1
 }
+
+cbPalette <- c("#56B4E9", "#E69F00")
+
 ## LINEPLOT
 IBI_plot <- ggplot(emm0.1, aes(x=IBIno, y=emmean, color=Block)) +
   geom_point(size = 2) + 
   geom_line(aes(group = Block),size = 1)+
   geom_errorbar(width=.125, aes(ymin=emmean-SE, ymax=emmean+SE), position=pd)+
   geom_hline(yintercept=0, linetype="dashed")+
+  scale_colour_manual(values=cbPalette)+
   theme_bw(base_size = 8)+
   theme(legend.position="bottom")+
   theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank())+ 
@@ -133,8 +139,10 @@ IBI_plot <- ggplot(emm0.1, aes(x=IBIno, y=emmean, color=Block)) +
     axis.text.x=element_text(size=rel(1)),
     axis.title.y=element_text(size=rel(1)),
     axis.title.x = element_text(size=rel(1)),
-    legend.position = "bottom",
+    # legend.position = "bottom",
+    legend.position = c(.8,.85),
     legend.title = element_blank()
   )
-# IBI_plot
+IBI_plot
 ggsave(IBI_plot, file=paste0(plotPrefix, "Figure_IBI.jpeg"), width = 3000, height = 1500, dpi = 300, units = "px")
+

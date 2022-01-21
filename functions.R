@@ -153,10 +153,11 @@ rescalepostive <- function(x) {
 audio_pretty_plot <-
   function(emmean_dataframe, title){
     ggplot(emmean_dataframe, aes(x=block, y=emmean, colour = block)) +
-      geom_point(size = 2) + 
+      geom_point(size = 5) + 
       geom_line(aes(group = 1),size = 1, colour = "black", linetype = "dotted")+
-      geom_errorbar(width=.125, aes(ymin=emmean-SE, ymax=emmean+SE))+
+      geom_errorbar(width=.25, size = 1.4, aes(ymin=emmean-SE, ymax=emmean+SE))+
       labs(y = title, x = "Feedback block")+
+      scale_colour_manual(values=cbPalette)+
       plot_theme_apa()
   }
 # One general theme to clean up code

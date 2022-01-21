@@ -90,9 +90,11 @@ data = data[data$block ==  'Neutral' | data$block == 'Negative',] # Get only blo
 
 data = data[data$HNRdBACF_sma3nz_amean > 0, ] # Kick out all the lines with negative HNR, that means the signal is too noisy to trust
 ######## Analysis ########
+cbPalette <- c("#56B4E9", "#E69F00") # Colorblind plotting colors
 ####### Speech features #######
 ###### Speech features: F0 ######
-formula <- 'F0semitoneFrom27.5Hz_sma3nz_amean ~ block + Sex + Age + (1|participantNum)' # Declare formula
+formula <- 'F0semitoneFrom27.5Hz_sma3nz_amean ~ block + Sex + (1|participantNum)' # Declare formula
+
 dataModel = data # Ensure correct data is taken
 rm(d0.1, d0.2, d0.3) # Just to be sure you're not comparing former models for this comparison
 
@@ -116,7 +118,8 @@ F0_plot <- F0_plot + annotate('text', x=1.5, y=mean(emm0.1$emmean) + (max(emm0.1
 ggsave(F0_plot, file=paste0(plotPrefix, "Figure_F0.jpeg"), width = 2000, height = 1500, dpi = 300, units = "px")
 
 ###### Speech features: Jitter ######
-formula <- 'jitterLocal_sma3nz_amean ~ block + Sex + Age + (1|participantNum)' # Declare formula
+formula <- 'jitterLocal_sma3nz_amean ~ block + Sex + (1|participantNum)' # Declare formula
+
 dataModel = data # Ensure correct data is taken
 rm(d0.1, d0.2, d0.3) # Just to be sure you're not comparing former models for this comparison
 
@@ -140,7 +143,8 @@ Jitter_plot <- Jitter_plot + annotate('text', x=1.5, y=mean(emm0.1$emmean) + (ma
 ggsave(Jitter_plot, file=paste0(plotPrefix, "Figure_Jitter.jpeg"), width = 2000, height = 1500, dpi = 300, units = "px")
 
 ###### Speech features: Shimmer ######
-formula <- 'shimmerLocaldB_sma3nz_amean ~ block + Sex + Age + (1|participantNum)' # Declare formula
+formula <- 'shimmerLocaldB_sma3nz_amean ~ block + Sex + (1|participantNum)' # Declare formula
+
 dataModel = data # Ensure correct data is taken
 rm(d0.1, d0.2, d0.3) # Just to be sure you're not comparing former models for this comparison
 
@@ -164,14 +168,15 @@ Shimmer_plot <- Shimmer_plot + annotate('text', x=1.5, y=mean(emm0.1$emmean) + (
 ggsave(Shimmer_plot, file=paste0(plotPrefix, "Figure_Shimmer.jpeg"), width = 2000, height = 1500, dpi = 300, units = "px")
 
 ###### Speech features: HNR ######
-formula <- 'HNRdBACF_sma3nz_amean ~ block + Sex + Age + (1|participantNum)' # Declare formula
+formula <- 'HNRdBACF_sma3nz_amean ~ block + Sex + (1|participantNum)' # Declare formula
+
 dataModel = data # Ensure correct data is taken
 rm(d0.1, d0.2, d0.3) # Just to be sure you're not comparing former models for this comparison
 
 d0.1 <- lmer(formula,data=dataModel)
 d0.2 <- glmer(formula,data=data, family = Gamma(link = "identity"),glmerControl(optimizer= "bobyqa", optCtrl = list(maxfun = 100000)),nAGQ = nAGQ)
 d0.3 <- glmer(formula,data=data, family = inverse.gaussian(link = "identity"),glmerControl(optimizer= "bobyqa", optCtrl = list(maxfun = 100000)),nAGQ = nAGQ)
-a
+
 # Model Selection
 modelNames = c(d0.1,d0.2,d0.3)
 tabel <- cbind(AIC(d0.1), AIC(d0.2), AIC(d0.3))
@@ -188,7 +193,8 @@ HNR_plot <- HNR_plot + annotate('text', x=1.5, y=mean(emm0.1$emmean) + (max(emm0
 ggsave(HNR_plot, file=paste0(plotPrefix, "Figure_HNR.jpeg"), width = 2000, height = 1500, dpi = 300, units = "px")
 
 ###### Speech features: Voiced per sec ######
-formula <- 'VoicedSegmentsPerSec ~ block + Sex + Age + (1|participantNum)' # Declare formula
+formula <- 'VoicedSegmentsPerSec ~ block + (1|participantNum)' # Declare formula
+
 dataModel = data # Ensure correct data is taken
 rm(d0.1, d0.2, d0.3) # Just to be sure you're not comparing former models for this comparison
 
@@ -212,7 +218,8 @@ VoicedSeg_plot <- VoicedSeg_plot + annotate('text', x=1.5, y=mean(emm0.1$emmean)
 ggsave(VoicedSeg_plot, file=paste0(plotPrefix, "Figure_VoicedPerSec.jpeg"), width = 2000, height = 1500, dpi = 300, units = "px")
 
 ###### Speech features: Mean voiced segment length ######
-formula <- 'MeanVoicedSegmentLengthSec ~ block + Sex + Age + (1|participantNum)' # Declare formula
+formula <- 'MeanVoicedSegmentLengthSec ~ block + Sex + (1|participantNum)' # Declare formula
+
 dataModel = data # Ensure correct data is taken
 rm(d0.1, d0.2, d0.3) # Just to be sure you're not comparing former models for this comparison
 
@@ -237,7 +244,8 @@ ggsave(SegLength_plot, file=paste0(plotPrefix, "Figure_MeanVoicedLength.jpeg"), 
 
 ####### Self-reports #######
 ###### Self-reports: Valence ######
-formula <- 'valence ~ block + Sex + Age + (1|participantNum)' # Declare formula
+formula <- 'valence ~ block + (1|participantNum)' # Declare formula
+
 dataModel = data # Ensure correct data is taken
 rm(d0.1, d0.2, d0.3) # Just to be sure you're not comparing former models for this comparison
 
@@ -261,7 +269,8 @@ valence_plot <- valence_plot + annotate('text', x=1.5, y=mean(emm0.1$emmean) + (
 ggsave(valence_plot, file=paste0(plotPrefix, "Figure_Valence.jpeg"), width = 2000, height = 1500, dpi = 300, units = "px")
 
 ###### Self-reports: Arousal ######
-formula <- 'arousal ~ block + Sex + Age + (1|participantNum)' # Declare formula
+formula <- 'arousal ~ block + (1|participantNum)' # Declare formula
+
 dataModel = data # Ensure correct data is taken
 rm(d0.1, d0.2, d0.3) # Just to be sure you're not comparing former models for this comparison
 
