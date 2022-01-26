@@ -27,6 +27,7 @@ source("functions.R") # This is a file in the same directory where you can stash
 
 #####  General settings ##### 
 nAGQ = 1 # Set to 1 for eventual analysis
+pvalues = c() # Create a variable to store all p-values to correct later
 
 BASEPATH <- "D:/Data/EEG_Study_1/aligned_data/features/"
 plotPrefix <- paste0(BASEPATH, "figures/")
@@ -109,9 +110,10 @@ chosenModel = modelNames[which(tabel == min(tabel))] # Get model with lowest AIC
 
 Anova(chosenModel[[1]], type = 'III')
 
-emmeans0.1 <- emmeans(chosenModel[[1]], pairwise ~ block, adjust ="fdr", type = "response") #we don't adjust because we do this later
+emmeans0.1 <- emmeans(chosenModel[[1]], pairwise ~ block, adjust ="none", type = "response") #we don't adjust because we do this later
 emm0.1 <- summary(emmeans0.1)$emmeans
 emmeans0.1$contrasts
+pvalues  = append(pvalues ,summary(emmeans0.1$contrasts)$p.value)
 
 F0_plot <- audio_pretty_plot(emm0.1, "F0")
 F0_plot <- F0_plot + annotate('text', x=1.5, y=mean(emm0.1$emmean) + (max(emm0.1$emmean) - min(emm0.1$emmean)) / 2, label='**', size=7)
@@ -134,9 +136,10 @@ chosenModel = modelNames[which(tabel == min(tabel))] # Get model with lowest AIC
 
 Anova(chosenModel[[1]], type = 'III')
 
-emmeans0.1 <- emmeans(chosenModel[[1]], pairwise ~ block, adjust ="fdr", type = "response") #we don't adjust because we do this later
+emmeans0.1 <- emmeans(chosenModel[[1]], pairwise ~ block, adjust ="none", type = "response") #we don't adjust because we do this later
 emm0.1 <- summary(emmeans0.1)$emmeans
 emmeans0.1$contrasts
+pvalues  = append(pvalues ,summary(emmeans0.1$contrasts)$p.value)
 
 Jitter_plot <- audio_pretty_plot(emm0.1, "Jitter")
 Jitter_plot <- Jitter_plot + annotate('text', x=1.5, y=mean(emm0.1$emmean) + (max(emm0.1$emmean) - min(emm0.1$emmean)) / 2, label='', size=7)
@@ -159,9 +162,10 @@ chosenModel = modelNames[which(tabel == min(tabel))] # Get model with lowest AIC
 
 Anova(chosenModel[[1]], type = 'III')
 
-emmeans0.1 <- emmeans(chosenModel[[1]], pairwise ~ block, adjust ="fdr", type = "response") #we don't adjust because we do this later
+emmeans0.1 <- emmeans(chosenModel[[1]], pairwise ~ block, adjust ="none", type = "response") #we don't adjust because we do this later
 emm0.1 <- summary(emmeans0.1)$emmeans
 emmeans0.1$contrasts
+pvalues  = append(pvalues ,summary(emmeans0.1$contrasts)$p.value)
 
 Shimmer_plot <- audio_pretty_plot(emm0.1, "Shimmer")
 Shimmer_plot <- Shimmer_plot + annotate('text', x=1.5, y=mean(emm0.1$emmean) + (max(emm0.1$emmean) - min(emm0.1$emmean)) / 2, label='**', size=7)
@@ -184,9 +188,10 @@ chosenModel = modelNames[which(tabel == min(tabel))] # Get model with lowest AIC
 
 Anova(chosenModel[[1]], type = 'III')
 
-emmeans0.1 <- emmeans(chosenModel[[1]], pairwise ~ block, adjust ="fdr", type = "response") #we don't adjust because we do this later
+emmeans0.1 <- emmeans(chosenModel[[1]], pairwise ~ block, adjust ="none", type = "response") #we don't adjust because we do this later
 emm0.1 <- summary(emmeans0.1)$emmeans
 emmeans0.1$contrasts
+pvalues  = append(pvalues ,summary(emmeans0.1$contrasts)$p.value)
 
 HNR_plot <- audio_pretty_plot(emm0.1, "HNR")
 HNR_plot <- HNR_plot + annotate('text', x=1.5, y=mean(emm0.1$emmean) + (max(emm0.1$emmean) - min(emm0.1$emmean)) / 2, label='**', size=7)
@@ -209,9 +214,10 @@ chosenModel = modelNames[which(tabel == min(tabel))] # Get model with lowest AIC
 
 Anova(chosenModel[[1]], type = 'III')
 
-emmeans0.1 <- emmeans(chosenModel[[1]], pairwise ~ block, adjust ="fdr", type = "response") #we don't adjust because we do this later
+emmeans0.1 <- emmeans(chosenModel[[1]], pairwise ~ block, adjust ="none", type = "response") #we don't adjust because we do this later
 emm0.1 <- summary(emmeans0.1)$emmeans
 emmeans0.1$contrasts
+pvalues  = append(pvalues ,summary(emmeans0.1$contrasts)$p.value)
 
 VoicedSeg_plot <- audio_pretty_plot(emm0.1, "Voiced segments per sec")
 VoicedSeg_plot <- VoicedSeg_plot + annotate('text', x=1.5, y=mean(emm0.1$emmean) + (max(emm0.1$emmean) - min(emm0.1$emmean)) / 2, label='', size=7)
@@ -234,9 +240,10 @@ chosenModel = modelNames[which(tabel == min(tabel))] # Get model with lowest AIC
 
 Anova(chosenModel[[1]], type = 'III')
 
-emmeans0.1 <- emmeans(chosenModel[[1]], pairwise ~ block, adjust ="fdr", type = "response") #we don't adjust because we do this later
+emmeans0.1 <- emmeans(chosenModel[[1]], pairwise ~ block, adjust ="none", type = "response") #we don't adjust because we do this later
 emm0.1 <- summary(emmeans0.1)$emmeans
 emmeans0.1$contrasts
+pvalues  = append(pvalues ,summary(emmeans0.1$contrasts)$p.value)
 
 SegLength_plot <- audio_pretty_plot(emm0.1, "Mean voiced segment length")
 SegLength_plot <- SegLength_plot + annotate('text', x=1.5, y=mean(emm0.1$emmean) + (max(emm0.1$emmean) - min(emm0.1$emmean)) / 2, label='', size=7)
@@ -292,3 +299,8 @@ emmeans0.1$contrasts
 arousal_plot <- audio_pretty_plot(emm0.1, "Arousal")
 arousal_plot <- arousal_plot + annotate('text', x=1.5, y=mean(emm0.1$emmean) + (max(emm0.1$emmean) - min(emm0.1$emmean)) / 2, label='*', size=7)
 ggsave(arousal_plot, file=paste0(plotPrefix, "Figure_Arousal.jpeg"), width = 2000, height = 1500, dpi = 300, units = "px")
+
+###### p adjust #####
+names = c('F0', 'Jitter', 'Shimmer', 'HNR', 'VoicedperSec', 'MeanVoicedSegLength')
+ps = list()
+ps[names] = p.adjust(pvalues, method = "fdr", length(pvalues)) # Create list containing fdr corrected pvalues

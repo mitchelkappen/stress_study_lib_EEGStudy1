@@ -115,14 +115,15 @@ cbPalette <- c("#56B4E9", "#E69F00")
 ## LINEPLOT
 IBI_plot <- ggplot(emm0.1, aes(x=IBIno, y=emmean, color=Block)) +
   geom_point(size = 2) + 
-  geom_line(aes(group = Block),size = 1)+
+  geom_line(aes(linetype = Block, group = Block),size = 1)+
   geom_errorbar(width=.125, aes(ymin=emmean-SE, ymax=emmean+SE), position=pd)+
   geom_hline(yintercept=0, linetype="dashed")+
   scale_colour_manual(values=cbPalette)+
+  scale_linetype_manual(values=c("dashed", "solid")) +
   theme_bw(base_size = 8)+
   theme(legend.position="bottom")+
   theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank())+ 
-  labs(y = "Delta IBI (ms)", x = "Sequential IBI")+
+  labs(y = "Delta IBI (ms)", x = "IBI no.")+
   annotate(geom="text", x=xplotPosition - 1, y=mean(emm0.1$emmean[11:12]), label="*", color="#000000")+ #IBI2
   annotate(geom="text", x=xplotPosition, y=mean(emm0.1$emmean[13:14]), label="**", color="#000000")+ #IBI3
   annotate(geom="text", x=xplotPosition + 1, y=mean(emm0.1$emmean[15:16]), label="**", color="#000000")+ #IBI4
@@ -135,8 +136,10 @@ IBI_plot <- ggplot(emm0.1, aes(x=IBIno, y=emmean, color=Block)) +
   theme(legend.text = element_text(size = 16))+ # Legend text
   theme(legend.title = element_text(size = 14))+ # Legend title
   plot_theme_apa()+
+  scale_x_discrete(labels=c("-3", "-2(r)", "-1", "0", "1", "2", "3", "4", "5", "6", "7", "8"))+
   theme(
-    axis.text.x=element_text(size=rel(1)),
+    axis.text.x=element_text(size=rel(3)),
+    axis.text.y=element_text(size=rel(2)),
     axis.title.y=element_text(size=rel(1)),
     axis.title.x = element_text(size=rel(1)),
     # legend.position = "bottom",
@@ -146,3 +149,12 @@ IBI_plot <- ggplot(emm0.1, aes(x=IBIno, y=emmean, color=Block)) +
 IBI_plot
 ggsave(IBI_plot, file=paste0(plotPrefix, "Figure_IBI.jpeg"), width = 3000, height = 1500, dpi = 300, units = "px")
 
+##### Descriptives #####
+# Get No. of participants
+length(match(unique(data$pptNum), data$pptNum))
+# Get mean and sd of Age
+mean(data$Age[match(unique(data$pptNum), data$pptNum)])
+sd(data$Age[match(unique(data$pptNum), data$pptNum)])
+# Get No. of women and men
+sum(data$Sex[match(unique(data$pptNum), data$pptNum)] == 'F')
+sum(data$Sex[match(unique(data$pptNum), data$pptNum)] == 'M')
