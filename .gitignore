@@ -8,3 +8,4 @@ smile.log
 *.jpeg
 *.png
 *.parquet
+*.pyc
