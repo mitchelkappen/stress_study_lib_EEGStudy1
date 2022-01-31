@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Process ecg code mitchel
-"""
+"""ECG processing code for speech study UZ"""
 __author__ = "Jonas Van Der Donckt"
 
 import traceback
@@ -9,12 +8,13 @@ from typing import List
 
 import neurokit2 as nk
 import pandas as pd
+
 # -------------------------------- TIME SERIES --------------------------------
-from context_aware.modules.tsflex.processing import (
+from tsflex.processing import (
     SeriesProcessor,
     SeriesPipeline,
 )
-from context_aware.utils.dataframes import (
+from .dataframes import (
     groupby_consecutive,
     time_based_outer_merge,
 )
@@ -57,9 +57,9 @@ if True:
             )["ECG_R_Peaks"]
         except:
             traceback.print_exc()
-            # s = pd.Series(name=f"ECG_R_Peaks_{ecg_cleaned.name}_{method}")
-            # s.index = pd.to_datetime(s)
-            return pd.DataFrame(columns=[f"ECG_R_Peaks_{ecg_cleaned.name}_{method}"])
+            s = pd.Series(name=f"ECG_R_Peaks_{ecg_cleaned.name}_{method}")
+            s.index = pd.to_datetime(s).dt.tz_localize("Europe/Brussels")
+            return s.to_frame()
 
         return [
             pd.Series(
@@ -68,10 +68,20 @@ if True:
             ).rename(f"ECG_R_Peaks_{ecg_cleaned.name}_{method}")
         ]
 
-
-    def filter_peaks(detected_r_peaks: pd.Series, threshold=500) -> pd.Series:
-        detected_r_peaks = detected_r_peaks[detected_r_peaks > threshold].copy()
-        return detected_r_peaks
+    def filter_peaks(
+        detected_r_peaks: pd.Series, n_peaks, q=0.1, use_std=True, min_ok_threshold=400
+    ) -> pd.Series:
+        r = detected_r_peaks.rolling(n_peaks, center=True)
+        threshold = r.quantile(quantile=q)
+        if use_std:
+            threshold -= r.std()
+        detected_r_peaks = detected_r_peaks[
+            (detected_r_peaks > threshold) | (detected_r_peaks > min_ok_threshold)
+        ].copy()
+        return [
+            detected_r_peaks,
+            threshold.copy().rename(detected_r_peaks.name + "_threshold"),
+        ]
 
     def merge_ecg_r_peaks_series(*ecg_series) -> pd.Series:
         df_m = None
@@ -132,7 +142,7 @@ if True:
         # mask: true if outside of clipping values
         clipped_mask = (series < min_threshold) | (series >= max_threshold)
         for _, r in groupby_consecutive(clipped_mask).iterrows():
-            if r[series.name] and r['n_consecutive'] >= min_numb_consecutive:
+            if r[series.name] and r["n_consecutive"] >= min_numb_consecutive:
                 valid_mask[r.start - margin: r.end + margin] = False
         return valid_mask
 
@@ -160,7 +170,7 @@ if True:
         # ("ECG_cleaned_biosppy", 1000, "gamboa"),
         ("ECG_scipy_200Hz", 200, "neurokit"),
         ("ECG_mean_200Hz", 200, "neurokit"),
-        ("ECG_scipy_200Hz_cleaned_biosppy", 200, "elgendi"),
+        ("ECG_scipy_200Hz_cleaned_biosppy", 200, "neurokit"),
         ("ECG_mean_200Hz_cleaned_biosppy", 200, "neurokit"),
         ("ECG_scipy_500Hz", 500, "martinez"),
         ("ECG_mean_500Hz", 500, "neurokit"),
@@ -202,7 +212,7 @@ ecg_pipeline = SeriesPipeline(
             function=compute_ecg_sqi,
             min_threshold=-3000,
             max_threshold=3000,
-            min_numb_consecutive=5,
+            min_numb_consecutive=11,
             margin_s=1,
             resample_period_s=0.5,
         ),
@@ -223,7 +233,10 @@ ecg_pipeline = SeriesPipeline(
                 for name, _, suffix in sig_fs_rpeakmethod_list
             ],
             function=filter_peaks,
-            threshold=400,
+            n_peaks=1001,
+            q=0.4,
+            use_std=True,
+            min_ok_threshold=400
         ),  # -> todo maybe apply this for each step
         SeriesProcessor(
             series_names=tuple(
