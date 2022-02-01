@@ -1,16 +1,18 @@
+"""Parsing methods for several data files."""
+
 from pathlib import Path
 import pandas as pd
-from typing import Tuple
+
 
 def parse_marker_file(marker_path: Path) -> pd.DataFrame:
     """Parse the marker file.
-    
+
     The marker files are constructed by the trigger logs from the ECG/physio EDF file.
 
     Parameters
     ----------
     marker_path : Path
-        
+        The path of the marker files.
 
     Returns
     -------
@@ -32,12 +34,13 @@ def parse_timeline_file(timeline_path: Path) -> pd.DataFrame:
 
     Parameters
     ----------
-    df_timeline : pd.DataFrame
+    timeline_path : Path
+        The path of the eprime timeline file.
 
     Returns
     -------
     pd.DataFrame
-
+        The parsed timeline DataFrame.
 
     """
     tz = "europe/brussels"
@@ -75,6 +78,7 @@ def add_block_mask(df: pd.DataFrame) -> pd.DataFrame:
     -------
     pd.DataFrame
         The a view of `df`
+
     """
     df['block'] = None
     df.loc[df.fileNum.isin([1, 2, 3]), 'block'] = 'neutral'

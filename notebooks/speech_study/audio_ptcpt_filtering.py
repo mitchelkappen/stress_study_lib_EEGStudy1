@@ -1,5 +1,4 @@
-"""Code 
-"""
+"""Code to filter participants based on audio quality measures."""
 
 import pandas as pd
 
@@ -10,7 +9,7 @@ _to_be_removed = {
     3: [0, 8],
     5: [8],
     6: [7],
-    8: [8],
+    8: [8, 2],  # 2 is removed due to bad audio features
     9: [3],
     17: [6],
     24: None,
@@ -33,8 +32,8 @@ _to_be_removed = {
 
     # Remove due to bad audio features (negative Harmonics-to-Noise Ratio)
     19: [1, 2, 5, 6, 7],
-    8: [2],
 }
+
 
 def add_audio_mask(df: pd.DataFrame) -> pd.DataFrame:
     """Add a new bool column `bad_audio` which indicates whether the audio-quality of
@@ -48,7 +47,7 @@ def add_audio_mask(df: pd.DataFrame) -> pd.DataFrame:
     Returns
     -------
     pd.DataFrame
-        A view of df
+        A view of df.
     """
     df["bad_audio"] = False
     for ptcpt_id, f_ids in _to_be_removed.items():

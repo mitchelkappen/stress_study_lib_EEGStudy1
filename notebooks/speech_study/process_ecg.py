@@ -59,7 +59,7 @@ if True:
             traceback.print_exc()
             s = pd.Series(name=f"ECG_R_Peaks_{ecg_cleaned.name}_{method}")
             s.index = pd.to_datetime(s).dt.tz_localize("Europe/Brussels")
-            return s.to_frame()
+            return [s]
 
         return [
             pd.Series(
@@ -70,7 +70,7 @@ if True:
 
     def filter_peaks(
         detected_r_peaks: pd.Series, n_peaks, q=0.1, use_std=True, min_ok_threshold=400
-    ) -> pd.Series:
+    ) -> List[pd.Series]:
         r = detected_r_peaks.rolling(n_peaks, center=True)
         threshold = r.quantile(quantile=q)
         if use_std:

@@ -58,7 +58,6 @@ def time_based_outer_merge(
     return out
 
 
-
 def groupby_consecutive(
         df: Union[pd.Series, pd.DataFrame], col_name: str = None
 ) -> pd.DataFrame:
@@ -73,15 +72,16 @@ def groupby_consecutive(
         Must be time-indexed!
     col_name : str, optional
         If a dataFrame is passed, you will need to specify the `col_name` on which
-        the consecutive-grouping will need to take plase.
+        the consecutive-grouping will need to take place.
 
     Returns
     -------
     pd.DataFrame
         A new `DataFrame` view, with columns:
         [`start`, `end`, `n_consecutive`, `col_name`], representing the
-        start- and endtime of the consecutive range, the number of consecutive samples,
+        start- and end-time of the consecutive range, the number of consecutive samples,
         and the col_name's consecutive values.
+
     """
     if type(df) == pd.Series:
         col_name = df.name
