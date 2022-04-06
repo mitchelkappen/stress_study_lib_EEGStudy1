@@ -31,7 +31,7 @@ pvalues = c() # Create a variable to store all p-values to correct later
 
 BASEPATH <- "D:/Data/EEG_Study_1/aligned_data/features/"
 plotPrefix <- paste0(BASEPATH, "figures/")
-plotPrefix <- paste0(dirname(rstudioapi::getSourceEditorContext()$path),"/figures/")
+# plotPrefix <- paste0(dirname(rstudioapi::getSourceEditorContext()$path),"/figures/")
 
 data <-
   as.data.frame(read.csv(paste0(BASEPATH, "dataComplete.csv"))) # This contains everything except for the ones that were too bad -- see Excel drive
@@ -84,6 +84,12 @@ for(i in unique(data$participantNum)){
     }
   }
 }
+
+# Sample descriptives
+t.first <- data[match(unique(data$participantNum), data$participantNum),] # Create dataframe with one line per unique participant 
+sprintf("Number of participants: %.f", nrow(t.first))
+sprintf("Number of Men: %.f. Number of Women: %.f.", sum(t.first$Sex == 'M') , sum(t.first$Sex == 'F')) 
+sprintf("Age, Mean: %.2f, SD: %.2f.", mean(t.first$Age) , sd(t.first$Age))
 
 # Get relevant data
 dataBackup = data # Backup data so we can go back to this whenever
