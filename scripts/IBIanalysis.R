@@ -24,12 +24,12 @@ IBIlength = "big"
 # Set and Get directories
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path)) #Set WD to script location
 BASEPATH <- "D:/Data/EEG_Study_1/aligned_data/features/"
-plotPrefix <- paste0(dirname(rstudioapi::getSourceEditorContext()$path),"/figures/")
+plotPrefix <- paste0(dirname(rstudioapi::getSourceEditorContext()$path),"/../figures/")
 
 ##### Loading data ##### 
 
 IBIdata <-
-  as.data.frame(read_parquet("df_tot_merged_v2_ibi_pos_-2.parquet"))
+  as.data.frame(read_parquet("../loc_data/df_tot_merged_ibi_pos_-2.parquet"))
 
 agesex <-
   as.data.frame(read.csv(paste0(BASEPATH, "SexAge.csv")))
@@ -80,6 +80,13 @@ levels(data$IBIno) = c("-7","-6","-5","-4","-3","-2", "-1", "0", "1", "2", "3", 
 data$IBIno <- as.factor(data$IBIno)
 data$IBIno <- as.ordered(data$IBIno) 
 
+# Sample descriptives
+t.first <- data[match(unique(data$pptNum), data$pptNum),] # Create dataframe with one line per unique participant 
+sprintf("Number of participants: %.f", nrow(t.first))
+sprintf("Number of Men: %.f. Number of Women: %.f.", sum(t.first$Sex == 'M') , sum(t.first$Sex == 'F')) 
+sprintf("Age, Mean: %.2f, SD: %.2f.", mean(t.first$Age) , sd(t.first$Age))
+write.csv(t.first, "../loc_data/temp/IDsIBI.csv", row.names = FALSE)
+
 ######## Analysis ########
 ##### Statistics ####
 data$subBlock2 = data$subBlock # Data backup
@@ -87,22 +94,23 @@ levels(data$subBlock2) = c("1","2","3","1","2","3") # Set data levels
 # Load document where functions are stored
 source("functions.R")
 
+data$Condition = data$Block
 # Full formula
-formula <- IBIdelta_ms ~ Block * IBIno + (1|pptNum)
+formula <- IBIdelta_ms ~ Condition * IBIno + (1|pptNum)
 
 d0.1 <- lmer(formula,data=data) # Fit the lmer
 
 Anova(d0.1, type = 'III')
-plot(effect("Block:IBIno", d0.1)) #just to check
+plot(effect("Condition:IBIno", d0.1)) #just to check
 # emmeans(d0.1, pairwise ~ Block | IBIno, adjust ="fdr", type = "response")
-emmeans0.1 <- emmeans(d0.1, pairwise ~ Block | IBIno, adjust ="fdr", type = "response") # Compute a variable containing all emmeans/contrasts
+emmeans0.1 <- emmeans(d0.1, pairwise ~ Condition | IBIno, adjust ="fdr", type = "response") # Compute a variable containing all emmeans/contrasts
 emm0.1 <- summary(emmeans0.1)$emmeans
 emmeans0.1$contrasts
 
 #### Visualisation ####
 pd <- position_dodge(0.05) # To prevent errorbars overlapping, use position_dodge to move them horizontally - move them .05 to the left and right
 
-print("Significant interaction effect block and IBIno ")
+print("Significant interaction effect Condition and IBIno ")
 
 if(IBIlength == "small"){
   xplotPosition = 4.1
@@ -113,9 +121,9 @@ if(IBIlength == "small"){
 cbPalette <- c("#56B4E9", "#E69F00")
 
 ## LINEPLOT
-IBI_plot <- ggplot(emm0.1, aes(x=IBIno, y=emmean, color=Block)) +
+IBI_plot <- ggplot(emm0.1, aes(x=IBIno, y=emmean, color=Condition)) +
   geom_point(size = 2) + 
-  geom_line(aes(linetype = Block, group = Block),size = 1)+
+  geom_line(aes(linetype = Condition, group = Condition),size = 1)+
   geom_errorbar(width=.125, aes(ymin=emmean-SE, ymax=emmean+SE), position=pd)+
   geom_hline(yintercept=0, linetype="dashed")+
   scale_colour_manual(values=cbPalette)+
@@ -129,7 +137,7 @@ IBI_plot <- ggplot(emm0.1, aes(x=IBIno, y=emmean, color=Block)) +
   annotate(geom="text", x=xplotPosition + 1, y=mean(emm0.1$emmean[15:16]), label="**", color="#000000")+ #IBI4
   annotate(geom="text", x=xplotPosition + 2, y=mean(emm0.1$emmean[17:18]), label="***", color="#000000")+ #IBI5
   annotate(geom="text", x=xplotPosition + 3, y=mean(emm0.1$emmean[19:20]), label="***", color="#000000")+ #IBI6
-  annotate(geom="text", x=xplotPosition + 4, y=mean(emm0.1$emmean[21:22]), label="***", color="#000000")+ #IBI7
+  annotate(geom="text", x=xplotPosition + 4, y=mean(emm0.1$emmean[21:22]), label="**", color="#000000")+ #IBI7
   theme(axis.text.x = element_text(size = 16))+ # X Axis ticks
   theme(axis.text.y = element_text(size = 10))+ # Y axis ticks
   theme(axis.title = element_text(size = 16))+ # Axis titles
