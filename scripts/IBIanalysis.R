@@ -19,8 +19,6 @@ library(ggsignif)
 library(gridExtra)
 library(viridis)
 
-IBIlength = "big"
-
 # Set and Get directories
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path)) #Set WD to script location
 BASEPATH <- "D:/Data/EEG_Study_1/aligned_data/features/"
@@ -40,7 +38,7 @@ IBIdata <- merge(IBIdata, agesex, by = c("user"))
 ##### Data cleanup #####
 # Compute dataframe with relevant variables
 data <- data.frame(IBIdata[,c("user", "answered_correctly", "answered_in_time", "Running[Trial]",  "Trial", "Procedure[Block]", "sex", "Age", "answered_correctly")], select(IBIdata,contains("IBI_pos")))
-groupingVars <- c("pptNum", "answered_correctly", "answered_in_time", "subBlock", "Trial", "Block", "Sex", "Age", "Correct") # Give easier to use names
+groupingVars <- c("pptNum", "answered_correctly", "answered_in_time", "subBlock", "Trial", "Condition", "Sex", "Age", "Correct") # Give easier to use names
 names(data)[1:9] <- groupingVars
 
 # Factorize relevant variables and clean up data
@@ -49,9 +47,9 @@ data$answered_correctly <- as.factor(data$answered_correctly)
 data$answered_in_time <- as.factor(data$answered_in_time)
 data$subBlock <- as.factor(data$subBlock)
 data$Trial <- as.factor(data$Trial)
-data$Block[data$Block == "Controle"] = "Neutral"
-data$Block[data$Block == "Stress"] = "Negative"
-data$Block <- factor(data$Block, levels = c("Neutral", "Negative"))
+data$Condition[data$Condition == "Controle"] = "Control"
+data$Condition[data$Condition == "Stress"] = "Negative"
+data$Condition <- as.factor(data$Condition)
 data$Sex <- as.factor(data$Sex)
 data$Correct <- as.factor(data$Correct)
 data$answered_in_time <- as.factor(data$answered_in_time)
@@ -67,18 +65,11 @@ data <- melt(dataBackup, id.vars = groupingVars) # Get it to long format
 names(data)[names(data) == "variable"] <- "IBIno"
 names(data)[names(data) == "value"] <- "IBIdelta_ms"
 
-if(IBIlength == "small"){
-  # Create a plotting variable from IBI-4 for clarity in the viz
-  plotdata = data[!(data$IBIno=="IBI_pos.7" | data$IBIno=="IBI_pos.6" | data$IBIno=="IBI_pos.5"), ]
-  # But create a stats dataframe where the irrelevant datapoint will not be considered
-  data = data[!(data$IBIno=="IBI_pos.7" | data$IBIno=="IBI_pos.6" | data$IBIno=="IBI_pos.5" | data$IBIno=="IBI_pos.4" | data$IBIno=="IBI_pos.3" | data$IBIno=="IBI_pos.2" | data$IBIno=="IBI_pos.1"), ]
-} else if (IBIlength == "big"){
-  data = data[!(data$IBIno=="IBI_pos.7" | data$IBIno=="IBI_pos.6" | data$IBIno=="IBI_pos.5" | data$IBIno=="IBI_pos.4"), ]
-}
+# Taking out IBI-4 to IBI-7 because too far before the event
+data = data[!(data$IBIno=="IBI_pos.7" | data$IBIno=="IBI_pos.6" | data$IBIno=="IBI_pos.5" | data$IBIno=="IBI_pos.4"), ]
 
 levels(data$IBIno) = c("-7","-6","-5","-4","-3","-2", "-1", "0", "1", "2", "3", "4", "5", "6", "7", "8")
-data$IBIno <- as.factor(data$IBIno)
-data$IBIno <- as.ordered(data$IBIno) 
+data$IBIno <- as.ordered(data$IBIno)
 
 # Sample descriptives
 t.first <- data[match(unique(data$pptNum), data$pptNum),] # Create dataframe with one line per unique participant 
@@ -89,20 +80,16 @@ write.csv(t.first, "../loc_data/temp/IDsIBI.csv", row.names = FALSE)
 
 ######## Analysis ########
 ##### Statistics ####
-data$subBlock2 = data$subBlock # Data backup
-levels(data$subBlock2) = c("1","2","3","1","2","3") # Set data levels
 # Load document where functions are stored
 source("functions.R")
 
-data$Condition = data$Block
 # Full formula
 formula <- IBIdelta_ms ~ Condition * IBIno + (1|pptNum)
 
 d0.1 <- lmer(formula,data=data) # Fit the lmer
 
 Anova(d0.1, type = 'III')
-plot(effect("Condition:IBIno", d0.1)) #just to check
-# emmeans(d0.1, pairwise ~ Block | IBIno, adjust ="fdr", type = "response")
+
 emmeans0.1 <- emmeans(d0.1, pairwise ~ Condition | IBIno, adjust ="fdr", type = "response") # Compute a variable containing all emmeans/contrasts
 emm0.1 <- summary(emmeans0.1)$emmeans
 emmeans0.1$contrasts
@@ -112,13 +99,9 @@ pd <- position_dodge(0.05) # To prevent errorbars overlapping, use position_dodg
 
 print("Significant interaction effect Condition and IBIno ")
 
-if(IBIlength == "small"){
-  xplotPosition = 4.1
-} else if(IBIlength == "big"){
-  xplotPosition = 7.1
-}
+xplotPosition = 7.1 # set variable for right x location in plot
 
-cbPalette <- c("#56B4E9", "#E69F00")
+cbPalette <- c("#56B4E9", "#E69F00") # Set plot colors to colorblind friendly
 
 ## LINEPLOT
 IBI_plot <- ggplot(emm0.1, aes(x=IBIno, y=emmean, color=Condition)) +
