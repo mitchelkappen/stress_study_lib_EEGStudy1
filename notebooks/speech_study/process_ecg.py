@@ -1,5 +1,17 @@
 # -*- coding: utf-8 -*-
-"""ECG processing code for speech study UZ"""
+"""ECG processing code.
+
+This code uses-an ensemble approach, calculating R-Peaks on both the raw
+and processed ECG signal, using different processing algorithm and sample frequencies.
+
+The detected R-Peaks from these various configurations are then used to calculate the
+R-peak agreement. This R-peak agreement can be seen as a proxy for signal-quality and
+is thus used to determine VALID/INVALID regions.
+
+After this signal quality proxy, these (IN)VALID regions are then used for extracting
+valid R-peaks, which can then on their end be used to determine R-R delta's and HRV.
+
+"""
 __author__ = "Jonas Van Der Donckt"
 
 import traceback
@@ -20,131 +32,139 @@ from .dataframes import (
 )
 from scipy import signal
 
+
 # ------------------------------ ECG PROCESSING ---------------------------------
-# Helper methods
-if True:
+# Helper methods which are used in the processing pipeline
 
-    def mean_resample(series: pd.Series, resample_rate, new_name=None) -> pd.Series:
-        res_series = series.resample(resample_rate).mean()
-        if new_name is not None:
-            return res_series.rename(new_name)
-        return res_series
-
-    def scipy_downsample(series: pd.Series, ratio: int, new_name=None) -> pd.Series:
-        res_series = pd.Series(
-            data=signal.resample(series.values, int(len(series) / ratio)),
-            index=series.index[::ratio][: int(len(series) / ratio)],
-        )
-        if new_name is not None:
-            return res_series.rename(new_name)
-        return res_series
-
-    def clean_raw_ecg(
-        raw_ecg: pd.Series, sampling_rate, method="neurokit"
-    ) -> pd.Series:
-        return pd.Series(
-            nk.ecg_clean(raw_ecg.values, sampling_rate=sampling_rate, method=method),
-            index=raw_ecg.index,
-        ).rename(f"{raw_ecg.name}_cleaned_{method}")
+def mean_resample(series: pd.Series, resample_rate, new_name=None) -> pd.Series:
+    """Use pandas its mean downsampling"""
+    res_series = series.resample(resample_rate).mean()
+    if new_name is not None:
+        return res_series.rename(new_name)
+    return res_series
 
 
-    def find_peaks(
-            ecg_cleaned: pd.Series, sampling_rate, method="neurokit"
-    ) -> List[pd.Series]:
-        try:
-            r_peaks = nk.ecg_findpeaks(
-                ecg_cleaned.values, sampling_rate=sampling_rate, method=method
-            )["ECG_R_Peaks"]
-        except:
-            traceback.print_exc()
-            s = pd.Series(name=f"ECG_R_Peaks_{ecg_cleaned.name}_{method}")
-            s.index = pd.to_datetime(s).dt.tz_localize("Europe/Brussels")
-            return [s]
+def scipy_downsample(series: pd.Series, ratio: int, new_name=None) -> pd.Series:
+    """Resample using scipy.signal its resample method."""
+    res_series = pd.Series(
+        data=signal.resample(series.values, int(len(series) / ratio)),
+        index=series.index[::ratio][: int(len(series) / ratio)],
+    )
+    if new_name is not None:
+        return res_series.rename(new_name)
+    return res_series
 
-        return [
-            pd.Series(
-                ecg_cleaned.iloc[r_peaks].values,
-                index=ecg_cleaned.index[r_peaks],
-            ).rename(f"ECG_R_Peaks_{ecg_cleaned.name}_{method}")
-        ]
 
-    def filter_peaks(
+def clean_raw_ecg(raw_ecg: pd.Series, sampling_rate, method="neurokit") -> pd.Series:
+    """Clean the ECG signal with Neurokit2."""
+    return pd.Series(
+        nk.ecg_clean(raw_ecg.values, sampling_rate=sampling_rate, method=method),
+        index=raw_ecg.index,
+    ).rename(f"{raw_ecg.name}_cleaned_{method}")
+
+
+def find_r_peaks(
+        ecg_cleaned: pd.Series, sampling_rate, method="neurokit") -> List[pd.Series]:
+    """Find R-peaks"""
+    try:
+        r_peaks = nk.ecg_findpeaks(
+            ecg_cleaned.values, sampling_rate=sampling_rate, method=method
+        )["ECG_R_Peaks"]
+    except:
+        traceback.print_exc()
+        s = pd.Series(name=f"ECG_R_Peaks_{ecg_cleaned.name}_{method}")
+        s.index = pd.to_datetime(s).dt.tz_localize("Europe/Brussels")
+        return [s]
+
+    return [
+        pd.Series(
+            ecg_cleaned.iloc[r_peaks].values,
+            index=ecg_cleaned.index[r_peaks],
+        ).rename(f"ECG_R_Peaks_{ecg_cleaned.name}_{method}")
+    ]
+
+
+def filter_peaks(
         detected_r_peaks: pd.Series, n_peaks, q=0.1, use_std=True, min_ok_threshold=400
-    ) -> List[pd.Series]:
-        r = detected_r_peaks.rolling(n_peaks, center=True)
-        threshold = r.quantile(quantile=q)
-        if use_std:
-            threshold -= r.std()
-        detected_r_peaks = detected_r_peaks[
-            (detected_r_peaks > threshold) | (detected_r_peaks > min_ok_threshold)
+) -> List[pd.Series]:
+    """Due to saturation error, we might detect peaks that aren't occurring, this
+    processing code alleviates this issue."""
+    r = detected_r_peaks.rolling(n_peaks, center=True)
+    threshold = r.quantile(quantile=q)
+    if use_std:
+        threshold -= r.std()
+    detected_r_peaks = detected_r_peaks[
+        (detected_r_peaks > threshold) | (detected_r_peaks > min_ok_threshold)
         ].copy()
-        return [
-            detected_r_peaks,
-            threshold.copy().rename(detected_r_peaks.name + "_threshold"),
-        ]
+    return [
+        detected_r_peaks,
+        threshold.copy().rename(detected_r_peaks.name + "_threshold"),
+    ]
 
-    def merge_ecg_r_peaks_series(*ecg_series) -> pd.Series:
-        df_m = None
-        for s in ecg_series:
-            s_idx = s.index.to_series().rename(s.name)
-            if len(s_idx) == 0:
-                continue
 
-            if df_m is None:
-                df_m = s_idx.to_frame()
-            else:
-                df_m = time_based_outer_merge(
-                    df_m, s, tolerance=pd.Timedelta(f"{int(1000 / 200 * 5)}ms")
-                )
+def merge_ecg_r_peaks_series(*ecg_series) -> pd.Series:
+    df_m = None
+    for s in ecg_series:
+        s_idx = s.index.to_series().rename(s.name)
+        if len(s_idx) == 0:
+            continue
 
-        df_m["r_peak_agreement"] = df_m.notna().sum(axis=1) / len(ecg_series)
-        # todo -> add post processing based on time diff
-        return df_m["r_peak_agreement"]
+        if df_m is None:
+            df_m = s_idx.to_frame()
+        else:
+            df_m = time_based_outer_merge(
+                df_m, s, tolerance=pd.Timedelta(f"{int(1000 / 200 * 5)}ms")
+            )
 
-    def process_r_peak_agreement(
+    df_m["r_peak_agreement"] = df_m.notna().sum(axis=1) / len(ecg_series)
+    return df_m["r_peak_agreement"]
+
+
+def process_r_peak_agreement(
         agreement: pd.Series, ecg_sqi_series: pd.Series, ratio_threshold=0.6
-    ) -> pd.Series:
-        df_m = pd.merge_asof(
-            agreement,
-            ecg_sqi_series,
-            right_index=True,
-            left_index=True,
-            direction="nearest",
-        )
-        processed_peaks_bool = pd.Series(
-            index=agreement.index, data=df_m[ecg_sqi_series.name].values
-        ).rename("ECG_R_Peaks_processed")
+) -> pd.Series:
+    """"""
+    df_m = pd.merge_asof(
+        agreement,
+        ecg_sqi_series,
+        right_index=True,
+        left_index=True,
+        direction="nearest",
+    )
+    processed_peaks_bool = pd.Series(
+        index=agreement.index, data=df_m[ecg_sqi_series.name].values
+    ).rename("ECG_R_Peaks_processed")
 
-        # set to false where a low ratio
-        processed_peaks_bool.loc[agreement <= ratio_threshold] = False
-        return processed_peaks_bool
+    # set to false where a low ratio
+    processed_peaks_bool.loc[agreement <= ratio_threshold] = False
+    return processed_peaks_bool
 
-    def compute_ecg_sqi(
+
+def compute_ecg_sqi(
         series: pd.Series,
         min_threshold,
         max_threshold,
         min_numb_consecutive: int,
         margin_s: float,
         resample_period_s: float = 0.5,
-    ) -> pd.Series:
+) -> pd.Series:
+    # the series in which the clipped output + margin will be stored
+    valid_mask = pd.Series(
+        index=pd.date_range(
+            start=series.index[0],
+            end=series.index[-1],
+            freq=f"{resample_period_s}S",
+        ),
+        data=True,
+    ).rename(f"{series.name}_quality_mask")
+    margin = pd.Timedelta(seconds=margin_s)
 
-        # the series in which the clipped output + margin will be stored
-        valid_mask = pd.Series(
-            index=pd.date_range(
-                start=series.index[0],
-                end=series.index[-1],
-                freq=f"{resample_period_s}S",
-            ),
-            data=True,
-        ).rename(f"{series.name}_quality_mask")
-        margin = pd.Timedelta(seconds=margin_s)
-
-        # mask: true if outside of clipping values
-        clipped_mask = (series < min_threshold) | (series >= max_threshold)
-        for _, r in groupby_consecutive(clipped_mask).iterrows():
-            if r[series.name] and r["n_consecutive"] >= min_numb_consecutive:
-                valid_mask[r.start - margin: r.end + margin] = False
-        return valid_mask
+    # mask: true if outside of clipping values
+    clipped_mask = (series < min_threshold) | (series >= max_threshold)
+    for _, r in groupby_consecutive(clipped_mask).iterrows():
+        if r[series.name] and r["n_consecutive"] >= min_numb_consecutive:
+            valid_mask[r.start - margin: r.end + margin] = False
+    return valid_mask
 
 
 # -------- Hyper params
@@ -220,7 +240,7 @@ ecg_pipeline = SeriesPipeline(
         *[
             SeriesProcessor(
                 series_names=series_names,
-                function=find_peaks,
+                function=find_r_peaks,
                 sampling_rate=fs,
                 method=method,
             )
