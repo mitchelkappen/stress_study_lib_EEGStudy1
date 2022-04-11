@@ -9,7 +9,7 @@ _to_be_removed = {
     3: [0, 8],
     5: [8],
     6: [7],
-    8: [8, 2],  # 2 is removed due to bad audio features
+    8: [8],
     9: [3],
     17: [6],
     24: None,
@@ -29,9 +29,6 @@ _to_be_removed = {
     73: None,
     74: None,
     82: None,
-
-    # Remove due to bad audio features (negative Harmonics-to-Noise Ratio)
-    19: [1, 2, 5, 6, 7],
 }
 
 
