@@ -19,6 +19,7 @@ pyarrow = "^6.0.1"
 opensmile = "^2.4.1"
 neurokit2 = "^0.1.5"
 PyWavelets = "^1.2.0"
+scikit-image = "^0.19.1"
 
 
 [tool.poetry.dev-dependencies]
