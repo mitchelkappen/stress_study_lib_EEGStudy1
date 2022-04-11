@@ -1,3 +1,5 @@
+"""Various utilities for DAtaFrame-based operations."""
+
 import pandas as pd
 import numpy as np
 
