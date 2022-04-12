@@ -9,3 +9,7 @@ smile.log
 *.png
 *.parquet
 *.pyc
+*.csv
+*.csv
+*.csv
+loc_data/sex_mapping.csv
