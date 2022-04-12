@@ -1,3 +1,13 @@
+######################################
+#                                    #
+# Analysis of Audio and Self-reports #
+#       Social stressor data         #
+#                                    #
+######################################
+# This code uses premade csv for speech variables and self-reports
+# Here we perform data cleanup, analysis, and visualisation
+# Author: Mitchel Kappen
+# 12-4-2022
 ##### Set environment #####
 rm(list = ls()) # Clear environment
 cat("\014") # Clear console
@@ -27,22 +37,18 @@ setwd(dirname(rstudioapi::getActiveDocumentContext()$path)) #Set WD to script lo
 source("functions.R") # This is a file in the same directory where you can stash your functions so you can save them there and have them together
 
 #####  General settings ##### 
-nAGQ = 1 # Set to 1 for eventual analysis
+nAGQ = 1 # Glmer setting
 pvalues = c() # Create a variable to store all p-values to correct later
 
-BASEPATH <- "D:/Data/EEG_Study_1/aligned_data/features/"
-plotPrefix <- paste0(BASEPATH, "figures/")
+plotPrefix <- "../figures/" # Define directory to store visualisations
 
-data <-
-  as.data.frame(read_parquet("../loc_data/df_gemaps_func.parquet"))
+data <- as.data.frame(read_parquet("../loc_data/df_gemaps_func.parquet")) # Read dataframe containing audio features and self-reports
 
 ##### Clean data up a bit #####
 data$participantNum <- as.factor(data$participantNum)
 
-agesex <-
-  as.data.frame(read.csv(paste0(BASEPATH, "SexAge.csv")))
-
-data <- merge(data, agesex, by = c("participantNum"))
+agesex <- as.data.frame(read.csv("../loc_data/SexAge.csv")) # Read dataframe containing participants' Sex and Age
+data <- merge(data, agesex, by = c("participantNum")) # Add demographics to main dataframe
 
 # Add final condition names including 'baseline'
 data$condition[data$fileNum == 0] = 'baseline'
@@ -53,21 +59,20 @@ data$condition[data$fileNum == 4|data$fileNum == 8] = 'Rest'
 # Get relevant data
 dataBackup = data # Backup data so we can go back to this whenever
 data = data[data$condition ==  'Control' | data$condition == 'Negative',] # Get only control and negative feedback data (kick out resting blocks)
+data = data[data$HNRdBACF_sma3nz_amean > 0, ] # Kick out all the lines with negative HNR, that means the signal is too noisy to trust
 
+# Factorize final relevant variables
 data$condition <- as.factor(data$condition)
 data$Sex <- as.factor(data$Sex)
 
-data = data[data$HNRdBACF_sma3nz_amean > 0, ] # Kick out all the lines with negative HNR, that means the signal is too noisy to trust
-
-# Sample descriptives
+# Audio Sample descriptives
 t.first <- data[match(unique(data$participantNum), data$participantNum),] # Create dataframe with one line per unique participant 
 sprintf("Number of participants: %.f", nrow(t.first))
 sprintf("Number of Men: %.f. Number of Women: %.f.", sum(t.first$Sex == 'M') , sum(t.first$Sex == 'F')) 
 sprintf("Age, Mean: %.2f, SD: %.2f.", mean(t.first$Age) , sd(t.first$Age))
-write.csv(t.first, "../loc_data/temp/IDsSPEECH.csv", row.names = FALSE)
 
 ######## Analysis ########
-cbPalette <- c("#56B4E9", "#E69F00") # Colorblind plotting colors
+cbPalette <- c("#56B4E9", "#E69F00") # Define Colorblind proof plotting colors
 ####### Speech features #######
 ###### Speech features: F0 ######
 formula <- 'F0semitoneFrom27.5Hz_sma3nz_amean ~ condition + Sex + (1|participantNum)' # Declare formula
@@ -152,7 +157,7 @@ pvalues  = append(pvalues ,summary(emmeans0.1$contrasts)$p.value)
 
 # Effect size
 z_to_d(
-  z = c(2.7881),
+  z = c(2.881),
   df_error = 1,
   n = 71
 )
