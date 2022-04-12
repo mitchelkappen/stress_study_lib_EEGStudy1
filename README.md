@@ -5,11 +5,14 @@ This repository withholds the code base for the publication mentioned above.
 ## Project structure
 
 ```txt
-├── loc_data          <── data generated / used by the scripts
-├── notebooks         <── Python notebooks for data processing + exploratory analysis
-│   └── speech_study  <── helper functions for the notebooks
-├── reports           <── images / additional information related to the project.
-└── scripts           <── R scripts for data analysis
+├── figures               <── figure/plot output from R scripts
+├── loc_data              <── data generated / used by the scripts
+│   └── FeedbackBars      <── jpegs for all used feedback bars in feedback paradigm
+├── notebooks             <── Python notebooks for data processing + exploratory analysis
+│   └── speech_study      <── helper functions for the notebooks
+├── reports               <── images / additional information related to the project.
+├── supplemental material <── supplemental material
+└── scripts               <── R scripts for data analysis
 ```
 
 Data processing is done in Python and corresponding notebooks can be found in subdirectory ```notebooks/```.
@@ -35,7 +38,7 @@ poetry shell
 ```
 
 ## R scripts
-R installation and package version numbers are available in the SupplementalMaterial.pdf file in the subdirectory ```Supplemental Material/```.
+R installation and package version numbers are available in the SupplementalMaterial.pdf file in the subdirectory ```supplemental material/```.
 
 ## Data availability
 Raw audio files are only available upon request due to privacy implications.
