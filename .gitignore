@@ -10,6 +10,5 @@ smile.log
 *.parquet
 *.pyc
 *.csv
-*.csv
-*.csv
+*.pdf
 loc_data/sex_mapping.csv
