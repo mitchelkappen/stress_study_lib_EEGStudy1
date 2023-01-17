@@ -12,6 +12,7 @@
 rm(list = ls()) # Clear environment
 cat("\014") # Clear console
 dev.off() # Clear plot window
+options(contrasts=c("contr.sum", "contr.poly")) # Set contrast settings to effect coding
 
 library(yarrr)
 library(lme4)
@@ -31,7 +32,6 @@ library(viridis)
 
 # Set and Get directories
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path)) #Set WD to script location
-BASEPATH <- "D:/Data/EEG_Study_1/aligned_data/features/"
 plotPrefix <- "../figures/" # Define directory to store visualisations
 
 ##### Loading data ##### 
@@ -144,3 +144,4 @@ IBI_plot <- ggplot(emm0.1, aes(x=IBIno, y=emmean, color=Condition)) +
   )
 IBI_plot # Display plot
 ggsave(IBI_plot, file=paste0(plotPrefix, "Figure_IBI.jpeg"), width = 3000, height = 1500, dpi = 300, units = "px") # Save plot
+

@@ -35,6 +35,7 @@ library(dplyr)
 
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path)) #Set WD to script location
 source("functions.R") # This is a file in the same directory where you can stash your functions so you can save them there and have them together
+options(contrasts = c("contr.sum","contr.poly")) #use this for the p value of the t test
 
 #####  General settings ##### 
 nAGQ = 1 # Glmer setting
