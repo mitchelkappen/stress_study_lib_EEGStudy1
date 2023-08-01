@@ -55,7 +55,7 @@ data$pptNum <- as.factor(data$pptNum)
 data$answered_correctly <- as.factor(data$answered_correctly)
 data$answered_in_time <- as.factor(data$answered_in_time)
 data$subBlock <- as.factor(data$subBlock)
-data$Trial <- as.factor(data$Trial)
+data$Trial <- ordered(data$Trial)
 data$Condition[data$Condition == "Controle"] = "Control"
 data$Condition[data$Condition == "Stress"] = "Negative"
 data$Condition <- as.factor(data$Condition)

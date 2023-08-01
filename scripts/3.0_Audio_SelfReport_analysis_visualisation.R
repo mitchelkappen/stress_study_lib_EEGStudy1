@@ -65,6 +65,7 @@ data = data[data$HNRdBACF_sma3nz_amean > 0, ] # Kick out all the lines with nega
 # Factorize final relevant variables
 data$condition <- as.factor(data$condition)
 data$Sex <- as.factor(data$Sex)
+data$fileNum <- ordered(data$fileNum)
 
 # Audio Sample descriptives
 t.first <- data[match(unique(data$participantNum), data$participantNum),] # Create dataframe with one line per unique participant 
@@ -318,3 +319,4 @@ ggsave(arousal_plot, file=paste0(plotPrefix, "Figure_Arousal.jpeg"), width = 200
 names = c('F0', 'Jitter', 'Shimmer', 'HNR', 'VoicedperSec', 'MeanVoicedSegLength')
 ps = list()
 ps[names] = p.adjust(pvalues, method = "fdr", length(pvalues)) # Create list containing fdr corrected pvalues
+
